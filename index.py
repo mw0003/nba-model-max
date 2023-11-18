@@ -567,19 +567,19 @@ def modelTeamWinLoss(awayTeamID, homeTeamID):
 
 
 def modelHead2Head(offPlayer, defPlayer):
-   # matchupVal = matchupsrollup.MatchupsRollup(00, 'PerGame', 2022, 'Regular Season', None, offPlayer, None, defPlayer)
-    #matchupDf = matchupVal.get_data_frames()[0]
+    matchupVal = matchupsrollup.MatchupsRollup(off_player_id_nullable=offPlayer, def_player_id_nullable=defPlayer)
+    matchupDf = matchupVal.get_data_frames()[0]
+    print(matchupDf)
    #print(matchupDf)
 
-   pvp = playervsplayer.PlayerVsPlayer(player_id=offPlayer, vs_player_id=defPlayer, season=2022, season_type_playoffs="Regular Season").get_data_frame()
+   #pvp = playervsplayer.PlayerVsPlayer(player_id=offPlayer, vs_player_id=defPlayer, season=2022, season_type_playoffs="Regular Season").get_data_frames()
 
-   print(pvp)
 
    
 
 #### MAIN FUNCTION: Model Games ####
 def modelGame():
-   # getLineups()
+    #getLineups()
     games = getTodaysGames()
     lineups, out = readInLineups()
 
@@ -594,12 +594,15 @@ def modelGame():
         print(player)
         gameLog2023 = playergamelog.PlayerGameLog(player[0]['id'],2023,'Regular Season')
         gamesdf2023 = gameLog2023.get_data_frames()[0]
-        matchup = gamesdf2023.iloc[0]['MATCHUP']
+        if gamesdf2023.empty:
+            print(p)
+        else:
+            matchup = gamesdf2023.iloc[0]['MATCHUP']
 
         #Get player current team
         teams = matchup.split(" ")
         player_team = teams[0]
-        startingLineupsDict[p[0]] = player_team
+        startingLineupsDict[player[0]['id']] = player_team
     
 
 
@@ -617,7 +620,8 @@ def modelGame():
         all_games.append(homeTeamAbr + " " + awayTeamAbr)
         for key in startingLineupsDict:
 
-            print("FIRST ", homeTeamAbr, "SECOND ", startingLineupsDict[key] )
+            print(startingLineupsDict[key] )
+
             if startingLineupsDict[key] == homeTeamAbr:
                 homeTeamLineup.append(key)
             elif startingLineupsDict[key] == awayTeamAbr:
@@ -625,6 +629,8 @@ def modelGame():
 
         print(homeTeamLineup)
         print(awayTeamLineup)
+
+        modelHead2Head(homeTeamLineup[0], awayTeamLineup[0])
 
 
         #print(homeTeamAbr, awayTeamAbr)
