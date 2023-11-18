@@ -7,6 +7,7 @@ from queue import Empty
 from nba_api.stats.endpoints import playercareerstats, playergamelog, teamestimatedmetrics
 from nba_api.stats.static import players
 from nba_api.stats.static import teams
+from nba_api.stats.library.parameters import RunType
 
 import requests, pandas
 from bs4 import BeautifulSoup
@@ -17,14 +18,18 @@ from dateutil import parser
 from nba_api.live.nba.endpoints import scoreboard
 from nba_api.live.nba.endpoints import boxscore
 
+
 from nba_api.stats.static import teams, players
-from nba_api.stats.endpoints import cumestatsteamgames, cumestatsteam, gamerotation
+from nba_api.stats.endpoints import cumestatsteamgames, cumestatsteam, gamerotation, matchupsrollup,winprobabilitypbp,boxscoreadvancedv3, playervsplayer
 import pandas as pd
 import numpy as np
 import json
 import difflib
 import time
 import requests
+
+from runtype import Dispatch
+dp = Dispatch()
 
 #import sklearn
 from scipy import stats
@@ -58,6 +63,12 @@ def getLineups():
     positions = [x.find('div').text for x in lineups]
     names = [x.find('a')['title'] for x in lineups]
     teams = sum([[x.text] * 5 for x in soup.find_all(class_='lineup__abbr')], [])
+
+    print(names)
+    for name in names:
+        
+        p = players.find_players_by_full_name(name)
+        print(p)
 
     df = pandas.DataFrame(zip(names, teams, positions))
     jsonLineups = df.to_json(orient='split')
@@ -213,25 +224,61 @@ def linearProjection(player_game_log, colname, loglast):
         print(next_date)
     return forecast_set
 
+#get adv box score by player
+def getAdvBoxScore(gameid, playerid):
+    advBoxScore = boxscoreadvancedv3.BoxScoreAdvancedV3(game_id=gameid).player_stats
+    advBoxScoreDf = advBoxScore.get_data_frame()
+
+    playerDFInstance = advBoxScoreDf.loc[advBoxScoreDf["personId"] == playerid]
+    return playerDFInstance
+
 #run player projections
 def getPlayerProjection(playerName, team):
     player = players.find_players_by_full_name(playerName)
-    print(player[0]['id'])
+    print(player[0])
+
     gameLog2023 = playergamelog.PlayerGameLog(player[0]['id'],2023,'Regular Season')
     gameLog2022 = playergamelog.PlayerGameLog(player[0]['id'],2022,'Regular Season')
     
     #convert playergamelog objects to DFs
     gamesdf2023 = gameLog2023.get_data_frames()[0]
     gamesdf2022 = gameLog2022.get_data_frames()[0]
-    print(gamesdf2022)
+
+    #Get 2023 game ids
+    gameIds = gamesdf2023["Game_ID"].to_list()
+    
+    count = 0
+    for gameid in gameIds:
+        if count == 0: 
+            df = getAdvBoxScore(gameid, player[0]['id'])
+            totalBoxScore = df
+        else:
+            df = getAdvBoxScore(gameid, player[0]['id'])
+            totalBoxScore = pandas.concat([totalBoxScore, df])
+        count = count+1
+        
+
+    print("TOTAL BOX: ", totalBoxScore)
+
+    matchup = gamesdf2023.iloc[0]['MATCHUP']
+
+    teams = matchup.split(" ")
+
+    if team != teams[0]:
+        team = teams[0]
+
+    if gamesdf2022.empty or gamesdf2023.empty:
+        return "N/A"
+    #print(gamesdf2022)
 
     columnsOfValue = ['MIN', 'FGM', 'FGA', 'FG3M', 'FG3A', 'REB', 'AST', 'STL', 'BLK', 'PF', 'PTS','FTA','FTM','FG_PCT', 'FG3_PCT','FT_PCT']
     projDict = {}
-    for col in columnsOfValue:
-        proj = linearProjection(gamesdf2023, col, gamesdf2022)
-        projDict[col] = proj[0]
+    #for col in columnsOfValue:
+    #    proj = linearProjection(gamesdf2023, col, gamesdf2022)
+    #    projDict[col] = proj[0]
 
-    projDict["Team"] = team
+   # projDict["Team"] = team
+    
 
     return projDict
     
@@ -519,40 +566,116 @@ def modelTeamWinLoss(awayTeamID, homeTeamID):
     print(classification_report(validation['HOME_W'],y_pred))
 
 
+def modelHead2Head(offPlayer, defPlayer):
+   # matchupVal = matchupsrollup.MatchupsRollup(00, 'PerGame', 2022, 'Regular Season', None, offPlayer, None, defPlayer)
+    #matchupDf = matchupVal.get_data_frames()[0]
+   #print(matchupDf)
+
+   pvp = playervsplayer.PlayerVsPlayer(player_id=offPlayer, vs_player_id=defPlayer, season=2022, season_type_playoffs="Regular Season").get_data_frame()
+
+   print(pvp)
+
+   
+
 #### MAIN FUNCTION: Model Games ####
 def modelGame():
+   # getLineups()
     games = getTodaysGames()
     lineups, out = readInLineups()
 
     #TODO: Set full game dictionary?
 
     game_dictionary = {}
+    allplayers = lineups[[0]].to_numpy()
+    startingLineupsDict = {}
+
+    for p in allplayers:
+        player = players.find_players_by_full_name(p[0])
+        print(player)
+        gameLog2023 = playergamelog.PlayerGameLog(player[0]['id'],2023,'Regular Season')
+        gamesdf2023 = gameLog2023.get_data_frames()[0]
+        matchup = gamesdf2023.iloc[0]['MATCHUP']
+
+        #Get player current team
+        teams = matchup.split(" ")
+        player_team = teams[0]
+        startingLineupsDict[p[0]] = player_team
+    
+
 
     ## Model 1 game for now ## TODO: Model All Games on Slate 
+    all_games = []
+    for game in games:
 
-    homeTeamAbr = games[0]['homeTeam']['teamTricode']
-    awayTeamAbr = games[0]['awayTeam']['teamTricode']
+        #print(game)
+        homeTeamAbr = game['homeTeam']['teamTricode']
+        awayTeamAbr = game['awayTeam']['teamTricode']
 
-    home = teams.find_team_by_abbreviation(homeTeamAbr)
-    away = teams.find_team_by_abbreviation(awayTeamAbr)
+        homeTeamLineup = []
+        awayTeamLineup = []
 
-    modelTeamWinLoss(away['id'], home['id'])
+        all_games.append(homeTeamAbr + " " + awayTeamAbr)
+        for key in startingLineupsDict:
 
-    homeTeamLineupdf = lineups.loc[lineups[1] == homeTeamAbr]
-    awayTeamLineupdf = lineups.loc[lineups[1] == awayTeamAbr]
+            print("FIRST ", homeTeamAbr, "SECOND ", startingLineupsDict[key] )
+            if startingLineupsDict[key] == homeTeamAbr:
+                homeTeamLineup.append(key)
+            elif startingLineupsDict[key] == awayTeamAbr:
+                awayTeamLineup.append(key)
 
-    teamEstimates = teamestimatedmetrics.TeamEstimatedMetrics(00, 2023, 'Regular Season')
+        print(homeTeamLineup)
+        print(awayTeamLineup)
+
+
+        #print(homeTeamAbr, awayTeamAbr)
+       # home = teams.find_team_by_abbreviation(homeTeamAbr)
+       # away = teams.find_team_by_abbreviation(awayTeamAbr)
+
+    #modelTeamWinLoss(away['id'], home['id'])
+
+  
+
+    #print(startingLineupsDict)
+
+
+        #homeTeamLineupdf = lineups.loc[lineups[1] == homeTeamAbr]
+       # awayTeamLineupdf = lineups.loc[lineups[1] == awayTeamAbr]
+
+        #print(homeTeamLineupdf)
+
+    #issue with PG team on lineups
+   # print(awayTeamLineupdf)
+
+        #teamEstimates = teamestimatedmetrics.TeamEstimatedMetrics(00, 2023, 'Regular Season')
 
     #get arrays of each team lineups
-    homeTeamLineup = homeTeamLineupdf[0].to_numpy()
-    awayTeamLineup = awayTeamLineupdf[0].to_numpy()
+       # homeTeamLineup = homeTeamLineupdf[0].to_numpy()
+       # awayTeamLineup = awayTeamLineupdf[0].to_numpy()
+
+  #  offPlayerName = homeTeamLineupdf.loc[homeTeamLineupdf[2] == "SF"]
+  #  defPlayerName = awayTeamLineupdf.loc[awayTeamLineupdf[2]=="SF"]
+  #  print(offPlayerName)
+   # offPlayerName = offPlayerName.iloc[0][0]
+   # defPlayerName = defPlayerName.iloc[0][0]
+    
+   # offPlayer = players.find_players_by_full_name(offPlayerName)
+   # defPlayer = players.find_players_by_full_name(defPlayerName)
+    
+    #print(winprobabilitypbp.WinProbabilityPBP(games[0]['gameId'], RunType.default).get_data_frames())
+    
+    #print(offPlayerName, defPlayerName)
+
+    #modelHead2Head(offPlayer[0]['id'], defPlayer[0]['id'])
+   
 
     #run projections and save to game dictionary
-   # for player in homeTeamLineup:
+  #  for player in homeTeamLineup:
    #     player_dict = getPlayerProjection(player, homeTeamAbr)
-    #    game_dictionary[player] = player_dict
+  #      game_dictionary[player] = player_dict
     
-  #  print(game_dictionary)
+    #print(game_dictionary)
+    with open('projections.json', 'w', encoding='utf-8') as f:
+        json.dump(game_dictionary, f, ensure_ascii=False, indent=4)
     
 #-------------------#
 #Gets data for spreadsheets
@@ -568,5 +691,9 @@ def modelGame():
 #-------------------#
 
 modelGame()
+
+
+
+
 
 
