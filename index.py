@@ -28,6 +28,8 @@ import difflib
 import time
 import requests
 
+from nn import *
+
 from runtype import Dispatch
 dp = Dispatch()
 
@@ -230,10 +232,13 @@ def getAdvBoxScore(gameid, playerid):
     advBoxScoreDf = advBoxScore.get_data_frame()
 
     playerDFInstance = advBoxScoreDf.loc[advBoxScoreDf["personId"] == playerid]
-    return playerDFInstance
+    newDF = playerDFInstance[['minutes', 'assistPercentage', 'assistRatio','reboundPercentage','effectiveFieldGoalPercentage','trueShootingPercentage','usagePercentage','pace','possessions']].copy()
+   # print(newDF)
+    return newDF
 
 #run player projections
 def getPlayerProjection(playerName, team):
+    
     player = players.find_players_by_full_name(playerName)
     print(player[0])
 
@@ -244,21 +249,60 @@ def getPlayerProjection(playerName, team):
     gamesdf2023 = gameLog2023.get_data_frames()[0]
     gamesdf2022 = gameLog2022.get_data_frames()[0]
 
-    #Get 2023 game ids
-    gameIds = gamesdf2023["Game_ID"].to_list()
-    
+    #Get last 10 games
+    lastTen = gamesdf2023.head(10)
+
+    #gameIds = gamesdf2023["Game_ID"].to_list()
+    #print(lastTen)
+
+    gameIds = lastTen["Game_ID"].to_numpy()
+    playerID = lastTen.iloc[0]["Player_ID"]
+    lastTenAdvBoxScores = pd.DataFrame()
+    for id in gameIds:
+        df = getAdvBoxScore(id, playerID)
+        lastTenAdvBoxScores = pd.concat([lastTenAdvBoxScores, df])
+
+    print(lastTenAdvBoxScores)
+    print(lastTen)
+
+    last10pts = lastTen["PTS"].to_numpy()
+    last10usg = lastTenAdvBoxScores["usagePercentage"].to_numpy()
+
     count = 0
-    for gameid in gameIds:
-        if count == 0: 
-            df = getAdvBoxScore(gameid, player[0]['id'])
-            totalBoxScore = df
-        else:
-            df = getAdvBoxScore(gameid, player[0]['id'])
-            totalBoxScore = pandas.concat([totalBoxScore, df])
-        count = count+1
+    vararray = []
+    for pts in last10pts:
+        usgToPts = pts/last10usg[count]
+        vararray.append(usgToPts)
+
+    ptsavg = np.sum(last10pts)/10
+    usgavg = np.sum(last10usg)/10
+    print(usgavg)
+    print(vararray)
+
+    print("From SUM: ", usgavg* (np.sum(vararray)/10))
+    print("From Arrays: ", ptsavg)
+
+    sys.exit()
+    count = 0
+   # for gameid in gameIds:
+    #    if count == 0: 
+    #        time.sleep(.600)
+   #         df = getAdvBoxScore(gameid, player[0]['id'])
+    #        totalBoxScore = df
+    #    else:
+    #        time.sleep(.600)
+    #        df = getAdvBoxScore(gameid, player[0]['id'])
+    #        totalBoxScore = pandas.concat([totalBoxScore, df])
+    #    count = count+1
         
 
-    print("TOTAL BOX: ", totalBoxScore)
+    #print("TOTAL BOX: ", totalBoxScore)
+
+
+
+    if gamesdf2022.empty or gamesdf2023.empty:
+        return "N/A"
+    #print(gamesdf2022)
 
     matchup = gamesdf2023.iloc[0]['MATCHUP']
 
@@ -267,17 +311,13 @@ def getPlayerProjection(playerName, team):
     if team != teams[0]:
         team = teams[0]
 
-    if gamesdf2022.empty or gamesdf2023.empty:
-        return "N/A"
-    #print(gamesdf2022)
-
     columnsOfValue = ['MIN', 'FGM', 'FGA', 'FG3M', 'FG3A', 'REB', 'AST', 'STL', 'BLK', 'PF', 'PTS','FTA','FTM','FG_PCT', 'FG3_PCT','FT_PCT']
     projDict = {}
-    #for col in columnsOfValue:
-    #    proj = linearProjection(gamesdf2023, col, gamesdf2022)
-    #    projDict[col] = proj[0]
+    for col in columnsOfValue:
+        proj = linearProjection(gamesdf2023, col, gamesdf2022)
+        projDict[col] = proj[0]
 
-   # projDict["Team"] = team
+    # projDict["Team"] = team
     
 
     return projDict
@@ -565,16 +605,33 @@ def modelTeamWinLoss(awayTeamID, homeTeamID):
     y_pred = model.predict(scaled_val_data)
     print(classification_report(validation['HOME_W'],y_pred))
 
+@retry
+def findplayer(playerName):
+    player = players.find_players_by_full_name(playerName)
+    return player
 
 def modelHead2Head(offPlayer, defPlayer):
-    matchupVal = matchupsrollup.MatchupsRollup(off_player_id_nullable=offPlayer, def_player_id_nullable=defPlayer)
-    matchupDf = matchupVal.get_data_frames()[0]
-    print(matchupDf)
+
+    fullMatchups = pandas.DataFrame()
+
+    for player in defPlayer:
+        matchupVal = matchupsrollup.MatchupsRollup(off_player_id_nullable=offPlayer, def_player_id_nullable=player)
+        matchupDf = matchupVal.get_data_frames()[0]
+        if matchupDf.empty:
+            print("empty DF")
+        else:
+            fullMatchups = pandas.concat([fullMatchups, matchupDf])
+
+        print(matchupDf)
    #print(matchupDf)
 
    #pvp = playervsplayer.PlayerVsPlayer(player_id=offPlayer, vs_player_id=defPlayer, season=2022, season_type_playoffs="Regular Season").get_data_frames()
 
-
+    print(fullMatchups)
+    if fullMatchups.empty:
+        print("Empty full matchups")
+    else:
+        fullMatchups.to_csv('h2h.csv', sep='\t', encoding='utf-8')
    
 
 #### MAIN FUNCTION: Model Games ####
@@ -589,11 +646,16 @@ def modelGame():
     allplayers = lineups[[0]].to_numpy()
     startingLineupsDict = {}
 
+    startingLineupsByName = {}
+
     for p in allplayers:
-        player = players.find_players_by_full_name(p[0])
+        
+        time.sleep(.600)
+        player = findplayer(p[0])
         print(player)
         gameLog2023 = playergamelog.PlayerGameLog(player[0]['id'],2023,'Regular Season')
         gamesdf2023 = gameLog2023.get_data_frames()[0]
+        #print(gamesdf2023)
         if gamesdf2023.empty:
             print(p)
         else:
@@ -603,6 +665,7 @@ def modelGame():
         teams = matchup.split(" ")
         player_team = teams[0]
         startingLineupsDict[player[0]['id']] = player_team
+        startingLineupsByName[player[0]["full_name"]] = player_team
     
 
 
@@ -616,11 +679,13 @@ def modelGame():
 
         homeTeamLineup = []
         awayTeamLineup = []
+        homeTeamLineupNames = []
+        awayTeamLineupNames = []
 
         all_games.append(homeTeamAbr + " " + awayTeamAbr)
         for key in startingLineupsDict:
 
-            print(startingLineupsDict[key] )
+          #  print(startingLineupsDict[key] )
 
             if startingLineupsDict[key] == homeTeamAbr:
                 homeTeamLineup.append(key)
@@ -630,7 +695,23 @@ def modelGame():
         print(homeTeamLineup)
         print(awayTeamLineup)
 
-        modelHead2Head(homeTeamLineup[0], awayTeamLineup[0])
+        for key in startingLineupsByName:
+            if startingLineupsByName[key] == homeTeamAbr:
+                homeTeamLineupNames.append(key)
+            elif startingLineupsByName[key] == awayTeamAbr:
+                awayTeamLineupNames.append(key)
+        
+        for player in homeTeamLineupNames:
+            time.sleep(.600)
+            player_dict = getPlayerProjection(player, homeTeamAbr)
+            game_dictionary[player] = player_dict
+    
+        for player in awayTeamLineupNames:
+            time.sleep(.600)
+            player_dict = getPlayerProjection(player, awayTeamAbr)
+            game_dictionary[player] = player_dict
+
+        #modelHead2Head(homeTeamLineup[0], awayTeamLineup)
 
 
         #print(homeTeamAbr, awayTeamAbr)
@@ -675,11 +756,12 @@ def modelGame():
    
 
     #run projections and save to game dictionary
-  #  for player in homeTeamLineup:
-   #     player_dict = getPlayerProjection(player, homeTeamAbr)
-  #      game_dictionary[player] = player_dict
     
-    #print(game_dictionary)
+    #for player in awayTeamLineupNames:
+   #    player_dict = getPlayerProjection(player, homeTeamAbr)
+    #    game_dictionary[player] = player_dict
+    
+    print(game_dictionary)
     with open('projections.json', 'w', encoding='utf-8') as f:
         json.dump(game_dictionary, f, ensure_ascii=False, indent=4)
     
@@ -696,7 +778,76 @@ def modelGame():
 #models game stats
 #-------------------#
 
-modelGame()
+getPlayerProjection("Luka Doncic", "Dallas Mavericks")
+
+
+
+### TEST NN ####
+
+"""
+player = players.find_players_by_full_name("Domantas Sabonis")
+gameLog2023 = playergamelog.PlayerGameLog(player[0]['id'],2023,'Regular Season')
+gamesdf2023 = gameLog2023.get_data_frames()[0]
+
+gameLog2022 = playergamelog.PlayerGameLog(player[0]['id'],2022,'Regular Season')
+gamesdf2022 = gameLog2022.get_data_frames()[0]
+
+pts2023 = gamesdf2023['PTS'].tolist()
+pts2022 = gamesdf2022['PTS'].tolist()
+
+length = len(pts2022)
+#outPutSet = array()
+inputSets = []
+count = 0
+tempInSet = []
+outputSet = []
+overallCount = 0
+#print(pts2022, pts2023)
+for pt in pts2022:
+    if overallCount + 3 <= length:
+        if count < 3:
+            tempInSet.append(pt)
+            count = count+1
+            overallCount = overallCount +1
+        else:
+            outputSet.append(pt)
+            inputSets.append(tempInSet)
+            tempInSet = []
+            count = 0
+            overallCount = overallCount +1
+    else:
+        break
+
+print("Inputs: ", inputSets, "outs: ", outputSet)
+count = 0
+tempInSet = []
+length = len(pts2023)
+for pt in pts2023:
+    if overallCount + 3 <= length-3:
+        if count < 3:
+            tempInSet.append((pt/1000))
+            count = count+1
+            overallCount = overallCount +1
+        else:
+            outputSet.append(pt)
+            inputSets.append(tempInSet)
+            tempInSet = []
+            count = 0
+            overallCount = overallCount +1
+    else:
+        break
+
+setToPredict = [pts2023.pop(), pts2023.pop(1), pts2023.pop(2)]
+
+
+print("Inputs: ", inputSets, "outs: ", outputSet, "Predict: ", setToPredict)
+runNNPrediction(inputSets, outputSet, setToPredict)
+"""
+
+
+
+
+
 
 
 
