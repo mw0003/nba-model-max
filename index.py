@@ -4,7 +4,7 @@
 
 #career stats
 from queue import Empty
-from nba_api.stats.endpoints import playercareerstats, playergamelog, teamestimatedmetrics
+from nba_api.stats.endpoints import playercareerstats, playergamelog, teamestimatedmetrics,playerdashptshotdefend, commonplayerinfo
 from nba_api.stats.static import players
 from nba_api.stats.static import teams
 from nba_api.stats.library.parameters import RunType
@@ -20,7 +20,7 @@ from nba_api.live.nba.endpoints import boxscore
 
 
 from nba_api.stats.static import teams, players
-from nba_api.stats.endpoints import cumestatsteamgames, cumestatsteam, gamerotation, matchupsrollup,winprobabilitypbp,boxscoreadvancedv3, playervsplayer
+from nba_api.stats.endpoints import cumestatsteamgames, cumestatsteam, gamerotation, matchupsrollup,winprobabilitypbp,boxscoreadvancedv3, playervsplayer, boxscoreplayertrackv3
 import pandas as pd
 import numpy as np
 import json
@@ -122,6 +122,56 @@ def readInLineups():
    # print(df)
 
     return df, df2
+
+def defensiveStats(playerId, oppTeam):
+    dfs = playerdashptshotdefend.PlayerDashPtShotDefend(player_id=playerId, team_id=oppTeam)
+    df = dfs.get_data_frames()
+    print(df)
+    return df
+#Linear Regression for track boxscores
+def linearProjectionTrackBox(
+    df1, colname):
+
+    df = df1[['reboundChancesTotal', 'touches', 'passes','assists','contestedFieldGoalsMade','contestedFieldGoalPercentage','contestedFieldGoalsAttempted', 'uncontestedFieldGoalsMade','uncontestedFieldGoalsPercentage', 'uncontestedFieldGoalsAttempted', 'defendedAtRimFieldGoalsMade','defendedAtRimFieldGoalPercentage', 'defendedAtRimFieldGoalsAttempted']]
+    forecast_col = colname
+    forecast_out = int(math.ceil(0.01 * len(df)))
+    print("out: ", forecast_out)
+    df['label'] = df[forecast_col]
+
+    print(df)
+    print("DF LABEL: ", df['label'])
+    df2 = df['label']
+    X = np.array(range(len(df2))).reshape(-1, 1)
+
+    print(X)
+    X = preprocessing.scale(X)
+    X_lately = X[-forecast_out:]
+    #X = X[:-forecast_out]
+    print("LATELY", X_lately)
+
+    df.dropna(inplace=True)
+
+    y = np.array(df['label'])
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+    clf = LinearRegression(n_jobs=-1)
+    clf.fit(X_train, y_train)
+    print( X_train, X_test, y_train, y_test)
+    confidence = clf.score(X_test, y_test)
+
+    print("confidence Score: ", confidence)
+    forecast_set = clf.predict(X_lately)
+    print("projection: ", forecast_set)
+    df['Forecast'] = np.nan
+
+    last_date = df.iloc[-1].name
+    print(last_date)
+    next_date = last_date+1
+    for i in forecast_set:
+        df.loc[next_date] = [np.nan for _ in range(len(df.columns)-1)]+[i]
+        next_date += 1
+        print(next_date)
+    return forecast_set
 
 #projections for player stats by game logs
 def linearProjection(player_game_log, colname, loglast):
@@ -226,18 +276,29 @@ def linearProjection(player_game_log, colname, loglast):
         print(next_date)
     return forecast_set
 
+#adv Usg box score
+
+def getUsageBox(Game_id, playerID):
+   dfs = boxscoreplayertrackv3.BoxScorePlayerTrackV3(game_id = Game_id)
+   df = dfs.get_data_frames()
+   playerDFInstance = df[0].loc[df[0]["personId"] == playerID]
+  # print(playerDFInstance)
+   newDF = playerDFInstance[['position','reboundChancesTotal', 'touches', 'passes','assists','contestedFieldGoalsMade','contestedFieldGoalPercentage','contestedFieldGoalsAttempted', 'uncontestedFieldGoalsMade','uncontestedFieldGoalsPercentage', 'uncontestedFieldGoalsAttempted', 'defendedAtRimFieldGoalsMade','defendedAtRimFieldGoalPercentage', 'defendedAtRimFieldGoalsAttempted']]
+   #print(newDF)
+   return newDF
+
 #get adv box score by player
 def getAdvBoxScore(gameid, playerid):
     advBoxScore = boxscoreadvancedv3.BoxScoreAdvancedV3(game_id=gameid).player_stats
     advBoxScoreDf = advBoxScore.get_data_frame()
-
     playerDFInstance = advBoxScoreDf.loc[advBoxScoreDf["personId"] == playerid]
+   # print(playerDFInstance)
     newDF = playerDFInstance[['minutes', 'assistPercentage', 'assistRatio','reboundPercentage','effectiveFieldGoalPercentage','trueShootingPercentage','usagePercentage','pace','possessions']].copy()
    # print(newDF)
     return newDF
 
 #run player projections
-def getPlayerProjection(playerName, team):
+def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
     
     player = players.find_players_by_full_name(playerName)
     print(player[0])
@@ -251,38 +312,186 @@ def getPlayerProjection(playerName, team):
 
     #Get last 10 games
     lastTen = gamesdf2023.head(10)
-
+    
     #gameIds = gamesdf2023["Game_ID"].to_list()
     #print(lastTen)
 
+    if lastTen.empty:
+        return
     gameIds = lastTen["Game_ID"].to_numpy()
     playerID = lastTen.iloc[0]["Player_ID"]
     lastTenAdvBoxScores = pd.DataFrame()
+    trackBox = pd.DataFrame()
+
     for id in gameIds:
+        time.sleep(0.6)
         df = getAdvBoxScore(id, playerID)
-        lastTenAdvBoxScores = pd.concat([lastTenAdvBoxScores, df])
+        if df.empty is False:
+            lastTenAdvBoxScores = pd.concat([lastTenAdvBoxScores, df])
+        df2 = getUsageBox(id, playerID)
+        if df2.empty is False:
+            trackBox = pd.concat([trackBox, df2])
 
     print(lastTenAdvBoxScores)
-    print(lastTen)
+    print(trackBox)
+
+    colsOfinterest = ['reboundChancesTotal', 'touches', 'passes','assists','contestedFieldGoalsMade','contestedFieldGoalsAttempted', 'uncontestedFieldGoalsMade', 'uncontestedFieldGoalsAttempted', 'defendedAtRimFieldGoalsMade', 'defendedAtRimFieldGoalsAttempted']
+
+    #Record projections for player track stats
+    trackdict = {}
+    for col in colsOfinterest:
+        val = linearProjectionTrackBox(trackBox, col)
+        trackdict[col] = val[0]
+
+   # print(trackdict)
+    playerPosition = trackBox['position'].to_numpy()[0]
+    print("POS: " ,playerPosition[0])
+   # print(opposingTeamLineup)
+
+    defenders = []
+    oppTeamID = -1
+   #for p in opposingTeamLineup:
+    #    time.sleep(.600)
+    #    pl = commonplayerinfo.CommonPlayerInfo(player_id=p)
+    #    info = pl.get_normalized_dict()
+    #    info = info.get('CommonPlayerInfo')[0]
+    #    position = [info.get('POSITION')]
+    #    oppTeamID = info.get('TEAM_ID')
+    #    if position[0][0] == playerPosition:
+    #        defenders.append(info.get('PERSON_ID'))
+
+
+   # print(defenders)
+
+   # defStats = pd.DataFrame()
+   # for d in defenders:
+   #     time.sleep(.600)
+   #     defStats = pd.concat([defStats,defensiveStats(d,oppTeamID)])
+
+   # print(defStats)
+   # sys.exit()
+    #defensiveStats(playerId)
+    
+    #------ Get average open looks/contested looks/shots at rim ------#
+    fga = lastTen['FGA'].to_numpy()
+    contestedatt = trackBox['contestedFieldGoalsAttempted'].to_numpy()
+    uncontestedatt = trackBox['uncontestedFieldGoalsAttempted'].to_numpy()
+    rimatt = trackBox['defendedAtRimFieldGoalsAttempted'].to_numpy()
+
+    pctAtRim =[]
+    pctUnContest = []
+    pctContest = []
+    count = 0
+  
+    #TODO: Add trend on track details
+    #NOTE:  Contested at rim is also under all contested 
+
+    for atts in fga:
+        #print("FGA: ", atts, "Contest: ", contestedatt[count], "unc: ",  uncontestedatt[count], "Rim: ", rimatt[count])
+        pctContest.append(contestedatt[count]/atts)
+        pctUnContest.append(uncontestedatt[count]/atts)
+        pctAtRim.append(rimatt[count]/atts)
+        count = count + 1
+    #average makes on shot types
+    contestedpct = trackBox['contestedFieldGoalPercentage'].to_numpy()
+    openpct = trackBox['uncontestedFieldGoalsPercentage'].to_numpy()
+    rimpct = trackBox['defendedAtRimFieldGoalPercentage'].to_numpy()
+    contestedpct = np.sum(contestedpct)/len(contestedpct)
+    rimpct = np.sum(rimpct)/len(rimpct)
+    openpct = np.sum(openpct)/len(openpct)
+
+
+    contestedJumpers = trackdict["contestedFieldGoalsAttempted"] - trackdict['defendedAtRimFieldGoalsAttempted']
+
+    contestedJumpers = contestedJumpers * contestedpct
+    layups = trackdict['defendedAtRimFieldGoalsAttempted'] * rimpct
+    openShots = trackdict['uncontestedFieldGoalsAttempted'] * openpct
+
+    #FGM sum By Shot Type Projections 
+    sumFGM = contestedJumpers+layups+openShots
+    
+    # ------------------------------
+    #NOTE: Assits by passes per Assist
+    # ------------------------------
+
+
+    passes = np.sum(trackBox['passes'].to_numpy())/len(trackBox['passes'].to_numpy())
+    assists = np.sum(trackBox['assists'].to_numpy())/len(trackBox['assists'].to_numpy())
+
+    passPerAssists = assists/passes
+
+    print("passPerAssists", passPerAssists)
+    
+    astByPass = trackdict['passes'] * passPerAssists
+
+    print("Ast By Pass: ", astByPass, "Ast Proj: ", trackdict['assists'])
+
+    #contestproj = trackdict["contestedFieldGoalsAttempted"]
+    #contestedproj = contestedproj[0] * contestedpct
+
+    # ------------------------------
+    #NOTE: Rebounds By Reb Chances
+    # ------------------------------
+
+    rebChances = trackBox['reboundChancesTotal']
+    print("REB CHANCES: ", rebChances)
+    rebChancesAvg =  np.sum(trackBox['reboundChancesTotal'].to_numpy())/len(trackBox['reboundChancesTotal'].to_numpy())
+
+   
+    print(lastTenAdvBoxScores['pace'][(lastTenAdvBoxScores["pace"] >= 100) & (lastTenAdvBoxScores["pace"] <= 150)])
 
     last10pts = lastTen["PTS"].to_numpy()
-    last10usg = lastTenAdvBoxScores["usagePercentage"].to_numpy()
+    last10reb = lastTen["REB"].to_numpy()
+    last10ast = lastTen["AST"].to_numpy()
 
+    last10usg = lastTenAdvBoxScores["usagePercentage"].to_numpy()
+    last10possesions = lastTenAdvBoxScores["pace"].to_numpy()
+    poss = lastTenAdvBoxScores["possessions"].to_numpy()
+
+    ptsPerPos = []
+    astPerPos = []
+    rebPerPos = []
+
+    possAvg = np.sum(poss)/len(poss)
     count = 0
     vararray = []
+
     for pts in last10pts:
         usgToPts = pts/last10usg[count]
         vararray.append(usgToPts)
+        #get Reb/pos
+        rebPerPos.append(last10reb[count]/last10possesions[count])
+        astPerPos.append(last10ast[count]/last10possesions[count])
+        ptsPerPos.append(pts/last10possesions[count])
+        count = count +1
 
-    ptsavg = np.sum(last10pts)/10
-    usgavg = np.sum(last10usg)/10
-    print(usgavg)
-    print(vararray)
+    print("Pts PerPos: ", ptsPerPos)
+    print("AST PerPos: ", astPerPos)
+    print("REB PerPos: ", rebPerPos)
+    
+    mets = teamestimatedmetrics.TeamEstimatedMetrics()
+    dfs = mets.get_data_frames()[0]
 
-    print("From SUM: ", usgavg* (np.sum(vararray)/10))
-    print("From Arrays: ", ptsavg)
+    oppTeamDefRtg = dfs.loc[dfs['TEAM_NAME'] == opposingTeam]['E_DEF_RATING'].values[0]
 
-    sys.exit()
+    teamPace = dfs.loc[dfs['TEAM_NAME'] == team]['E_PACE']
+    teamPace = teamPace.values[0]
+
+    offset = teamPace-100
+    ptsper100pos = oppTeamDefRtg/100
+    pacenRating = oppTeamDefRtg + (offset*ptsper100pos)
+
+    ptsavg = np.sum(ptsPerPos)/len(ptsPerPos)
+    astavg = np.sum(astPerPos)/len(astPerPos)
+    rebavg = np.sum(rebPerPos)/len(rebPerPos)
+
+    usgavg = np.sum(last10usg)/len(last10usg)
+
+    usgToPoints = usgavg* (np.sum(vararray)/len(vararray))
+
+    ptsTotal = ptsavg * pacenRating
+    astTotal = astavg * pacenRating
+
     count = 0
    # for gameid in gameIds:
     #    if count == 0: 
@@ -315,11 +524,25 @@ def getPlayerProjection(playerName, team):
     projDict = {}
     for col in columnsOfValue:
         proj = linearProjection(gamesdf2023, col, gamesdf2022)
+        if col == "PTS":
+            print("PROJ: ", proj[0])
+            print("USG: ", usgToPoints)
+            proj[0] = proj[0]*0.25 +usgToPoints*0.15 + ptsTotal*0.6
+
+            print(proj[0])
+            print("USG2PTS: ", usgToPoints)
+            print("PACE&RATING TO PTS: ", ptsTotal )
+            print("ADJ RATING: ", pacenRating)
+        elif col == "AST":
+            proj[0] = proj[0]*0.2 + astTotal*0.5 + astByPass*0.3
+        elif col == "FGM":
+            proj[0] = proj[0]*0.25 + sumFGM *0.75
+
         projDict[col] = proj[0]
 
     # projDict["Team"] = team
-    
 
+    
     return projDict
     
 
@@ -636,7 +859,7 @@ def modelHead2Head(offPlayer, defPlayer):
 
 #### MAIN FUNCTION: Model Games ####
 def modelGame():
-    #getLineups()
+   # getLineups()
     games = getTodaysGames()
     lineups, out = readInLineups()
 
@@ -695,6 +918,39 @@ def modelGame():
         print(homeTeamLineup)
         print(awayTeamLineup)
 
+        teams = {
+            "ATL": "Atlanta Hawks",
+            "BOS": "Boston Celtics",
+            "CHA": "Charlotte Hornets",
+            "DAL": "Dallas Maverics",
+            "CHI": "Chicago Bulls",
+            "CLE": "Cleveland Cavaliers",
+            "DEN":  "Denver Nuggets",
+            "DET":	"Detroit Pistons",
+            "GSW":	"Golden State Warriors",
+            "HOU": "Houston Rockets",
+            "IND" : "Indiana Pacers",
+            "LAC" :"Los Angeles Clippers",
+            "LAL":"Los Angeles Lakers",
+            "MEM":"Memphis Grizzlies",      
+            "MIA":"Miami Heat",
+            "MIL":"Milwaukee Bucks",
+            "MIN":"Minnesota Timberwolves",
+            "NOP":"New Orleans Pelicans",
+            "NYK":"New York Knicks",
+            "BKN":"Brooklyn Nets",
+            "OKC":"Oklahoma City Thunder",
+            "ORL":"Orlando Magic",
+            "PHI":"Philadelphia 76ers",
+            "PHO":"Phoenix Suns",
+            "POR":"Portland Trail Blazers",
+            "SAC":"Sacramento Kings",
+            "SAS": "San Antonio Spurs",
+            "TOR":"Toronto Raptors",
+            "UTA":"Utah Jazz",
+            "WAS":"Washington Wizards",
+        }
+
         for key in startingLineupsByName:
             if startingLineupsByName[key] == homeTeamAbr:
                 homeTeamLineupNames.append(key)
@@ -703,12 +959,12 @@ def modelGame():
         
         for player in homeTeamLineupNames:
             time.sleep(.600)
-            player_dict = getPlayerProjection(player, homeTeamAbr)
+            player_dict = getPlayerProjection(player, teams[homeTeamAbr], teams[awayTeamAbr], awayTeamLineup)
             game_dictionary[player] = player_dict
     
         for player in awayTeamLineupNames:
             time.sleep(.600)
-            player_dict = getPlayerProjection(player, awayTeamAbr)
+            player_dict = getPlayerProjection(player, teams[homeTeamAbr], teams[awayTeamAbr], homeTeamLineup)
             game_dictionary[player] = player_dict
 
         #modelHead2Head(homeTeamLineup[0], awayTeamLineup)
@@ -778,7 +1034,10 @@ def modelGame():
 #models game stats
 #-------------------#
 
-getPlayerProjection("Luka Doncic", "Dallas Mavericks")
+
+
+#getPlayerProjection("Damian Lillard", "Milwaukee Bucks", "Indiana Pacers")
+modelGame()
 
 
 
