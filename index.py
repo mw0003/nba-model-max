@@ -3,6 +3,7 @@
 # API https://github.com/swar/nba_api/blob/master/docs/nba_api/stats/static/players.md
 
 #career stats
+from calendar import c
 from queue import Empty
 from nba_api.stats.endpoints import playercareerstats, playergamelog, teamestimatedmetrics,playerdashptshotdefend, commonplayerinfo
 from nba_api.stats.static import players
@@ -124,13 +125,14 @@ def readInLineups():
     return df, df2
 
 def defensiveStats(playerId, oppTeam):
-    dfs = playerdashptshotdefend.PlayerDashPtShotDefend(player_id=playerId, team_id=oppTeam)
-    df = dfs.get_data_frames()
-    print(df)
-    return df
+    test = playerdashptshotdefend.PlayerDashPtShotDefend(player_id=playerId,
+        team_id='0').get_data_frames()
+
+    print(test)
+    #sys.sleep()
+    return test[0]
 #Linear Regression for track boxscores
-def linearProjectionTrackBox(
-    df1, colname):
+def linearProjectionTrackBox(df1, colname):
 
     df = df1[['reboundChancesTotal', 'touches', 'passes','assists','contestedFieldGoalsMade','contestedFieldGoalPercentage','contestedFieldGoalsAttempted', 'uncontestedFieldGoalsMade','uncontestedFieldGoalsPercentage', 'uncontestedFieldGoalsAttempted', 'defendedAtRimFieldGoalsMade','defendedAtRimFieldGoalPercentage', 'defendedAtRimFieldGoalsAttempted']]
     forecast_col = colname
@@ -276,6 +278,78 @@ def linearProjection(player_game_log, colname, loglast):
         print(next_date)
     return forecast_set
 
+
+def linearOneProjection(player_game_log, colname):
+
+    df = player_game_log[[
+            "SEASON_ID",
+            "Player_ID",
+            "Game_ID",
+            "GAME_DATE",
+            "MATCHUP",
+            "WL",
+            "MIN",
+            "FGM",
+            "FGA",
+            "FG_PCT",
+            "FG3M",
+            "FG3A",
+            "FG3_PCT",
+            "FTM",
+            "FTA",
+            "FT_PCT",
+            "OREB",
+            "DREB",
+            "REB",
+            "AST",
+            "STL",
+            "BLK",
+            "TOV",
+            "PF",
+            "PTS",
+            "PLUS_MINUS",
+            "VIDEO_AVAILABLE"
+        ]]
+    
+    forecast_col = colname
+    forecast_out = int(math.ceil(0.01 * len(df)))
+    print("out: ", forecast_out)
+    df['label'] = df[forecast_col]
+
+    print(df)
+    print("DF LABEL: ", df['label'])
+    df2 = df['label']
+    X = np.array(range(len(df2))).reshape(-1, 1)
+
+    print(X)
+    X = preprocessing.scale(X)
+    X_lately = X[-forecast_out:]
+    #X = X[:-forecast_out]
+    print("LATELY", X_lately)
+
+    df.dropna(inplace=True)
+
+    y = np.array(df['label'])
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+    clf = LinearRegression(n_jobs=-1)
+    clf.fit(X_train, y_train)
+    print( X_train, X_test, y_train, y_test)
+    confidence = clf.score(X_test, y_test)
+
+    print("confidence Score: ", confidence)
+    forecast_set = clf.predict(X_lately)
+    print("projection: ", forecast_set)
+    df['Forecast'] = np.nan
+
+    last_date = df.iloc[-1].name
+    print(last_date)
+    next_date = last_date+1
+    for i in forecast_set:
+        df.loc[next_date] = [np.nan for _ in range(len(df.columns)-1)]+[i]
+        next_date += 1
+        print(next_date)
+    return forecast_set
 #adv Usg box score
 
 def getUsageBox(Game_id, playerID):
@@ -311,7 +385,7 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
     gamesdf2022 = gameLog2022.get_data_frames()[0]
 
     #Get last 10 games
-    lastTen = gamesdf2023.head(10)
+    lastTen = gamesdf2023.head(15)
     
     #gameIds = gamesdf2023["Game_ID"].to_list()
     #print(lastTen)
@@ -345,33 +419,61 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
 
    # print(trackdict)
     playerPosition = trackBox['position'].to_numpy()[0]
+
+    if len(playerPosition) < 1:
+        playerPosition = "G"
     print("POS: " ,playerPosition[0])
    # print(opposingTeamLineup)
 
     defenders = []
     oppTeamID = -1
-   #for p in opposingTeamLineup:
-    #    time.sleep(.600)
-    #    pl = commonplayerinfo.CommonPlayerInfo(player_id=p)
-    #    info = pl.get_normalized_dict()
-    #    info = info.get('CommonPlayerInfo')[0]
-    #    position = [info.get('POSITION')]
-    #    oppTeamID = info.get('TEAM_ID')
-    #    if position[0][0] == playerPosition:
-    #        defenders.append(info.get('PERSON_ID'))
+    for p in opposingTeamLineup:
+        time.sleep(.600)
+        pl = commonplayerinfo.CommonPlayerInfo(player_id=p)
+        info = pl.get_normalized_dict()
+        info = info.get('CommonPlayerInfo')[0]
+        position = [info.get('POSITION')]
+        oppTeamID = info.get('TEAM_ID')
+        if position[0][0] == playerPosition:
+            defenders.append(info.get('PERSON_ID'))
+        elif position[0][0] == "F" and playerPosition == "C":
+            defenders.append(info.get('PERSON_ID'))
 
+    if len(defenders) < 1:
+        for p in opposingTeamLineup:
+            time.sleep(.600)
+            pl = commonplayerinfo.CommonPlayerInfo(player_id=p)
+            info = pl.get_normalized_dict()
+            info = info.get('CommonPlayerInfo')[0]
+            position = [info.get('POSITION')]
+            oppTeamID = info.get('TEAM_ID')
+            if playerPosition == "G" and position[0][0] == "F":
+                defenders.append(info.get("PERSON_ID"))
+                break
+            elif playerPosition == "F" and position[0][0] == "G":
+                defenders.append(info.get("PERSON_ID"))
+                break
+            elif playerPosition == "G" and position[0][0] == "F":
+                defenders.append(info.get("PERSON_ID"))
+                break
 
-   # print(defenders)
+    print("DEFENDERS: ", defenders)
 
-   # defStats = pd.DataFrame()
-   # for d in defenders:
-   #     time.sleep(.600)
-   #     defStats = pd.concat([defStats,defensiveStats(d,oppTeamID)])
-
-   # print(defStats)
-   # sys.exit()
-    #defensiveStats(playerId)
+    if len(defenders) < 1:
+        return "N/A"
+    defStats = pd.DataFrame()
+    for d in defenders:
+        time.sleep(.600)
+        defStats = pd.concat([defStats,defensiveStats(d,oppTeamID)])
     
+    #defensive stats for 2s and 3s
+    d_3s = defStats.loc[defStats["DEFENSE_CATEGORY"] == "3 Pointers"]["D_FG_PCT"].to_numpy()
+    d_2s = defStats.loc[defStats["DEFENSE_CATEGORY"]== "2 Pointers"]["D_FG_PCT"].to_numpy()
+
+    print(defStats)
+
+    #defensiveStats(playerId)
+
     #------ Get average open looks/contested looks/shots at rim ------#
     fga = lastTen['FGA'].to_numpy()
     contestedatt = trackBox['contestedFieldGoalsAttempted'].to_numpy()
@@ -437,6 +539,25 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
     print("REB CHANCES: ", rebChances)
     rebChancesAvg =  np.sum(trackBox['reboundChancesTotal'].to_numpy())/len(trackBox['reboundChancesTotal'].to_numpy())
 
+    rebChancesProj = trackdict['reboundChancesTotal']
+    rebs = lastTen['REB'].to_numpy()
+    rebChances = trackBox['reboundChancesTotal'].to_numpy()
+    reb_pct = 0
+    count = 0
+    for reb in rebs:
+        #TODO: FIX THIS FOR ZERO DIVISION
+        if reb != 0 and rebChances[count] != 0:
+            reb_pct = (reb_pct + reb/rebChances[count])
+            count = count+ 1
+        else: 
+            count = count+1
+
+    reb_pct = reb_pct / count
+
+    print ("AVG: ", rebChancesAvg, "PROJ: ", rebChancesProj)
+
+    rebs2 = rebChancesProj * reb_pct
+
    
     print(lastTenAdvBoxScores['pace'][(lastTenAdvBoxScores["pace"] >= 100) & (lastTenAdvBoxScores["pace"] <= 150)])
 
@@ -460,14 +581,14 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
         usgToPts = pts/last10usg[count]
         vararray.append(usgToPts)
         #get Reb/pos
-        rebPerPos.append(last10reb[count]/last10possesions[count])
+       # rebPerPos.append(last10reb[count]/last10possesions[count])
         astPerPos.append(last10ast[count]/last10possesions[count])
         ptsPerPos.append(pts/last10possesions[count])
         count = count +1
 
     print("Pts PerPos: ", ptsPerPos)
     print("AST PerPos: ", astPerPos)
-    print("REB PerPos: ", rebPerPos)
+   # print("REB PerPos: ", rebPerPos)
     
     mets = teamestimatedmetrics.TeamEstimatedMetrics()
     dfs = mets.get_data_frames()[0]
@@ -483,7 +604,7 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
 
     ptsavg = np.sum(ptsPerPos)/len(ptsPerPos)
     astavg = np.sum(astPerPos)/len(astPerPos)
-    rebavg = np.sum(rebPerPos)/len(rebPerPos)
+    #rebavg = np.sum(rebPerPos)/len(rebPerPos)
 
     usgavg = np.sum(last10usg)/len(last10usg)
 
@@ -524,25 +645,91 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
     projDict = {}
     for col in columnsOfValue:
         proj = linearProjection(gamesdf2023, col, gamesdf2022)
+        projL10 = linearOneProjection(lastTen, col)
         if col == "PTS":
             print("PROJ: ", proj[0])
             print("USG: ", usgToPoints)
-            proj[0] = proj[0]*0.25 +usgToPoints*0.15 + ptsTotal*0.6
+            proj[0] = proj[0]*0.25 +usgToPoints*0.2 + ptsTotal*0.3 + projL10[0]*0.25
 
             print(proj[0])
             print("USG2PTS: ", usgToPoints)
             print("PACE&RATING TO PTS: ", ptsTotal )
             print("ADJ RATING: ", pacenRating)
         elif col == "AST":
-            proj[0] = proj[0]*0.2 + astTotal*0.5 + astByPass*0.3
+            proj[0] = proj[0]*0.15 + astTotal*0.4 + astByPass*0.2 + projL10[0]*0.25
         elif col == "FGM":
-            proj[0] = proj[0]*0.25 + sumFGM *0.75
+            proj[0] = proj[0]*0.25 + sumFGM *0.45 + projL10[0] * 0.3
+        elif col == "REB":
+            proj[0] = proj[0]*0.15 + rebs2 * 0.65 + projL10[0] * 0.2
+        elif col == "FTM": 
+            proj[0]*0.4 + projL10[0] * 0.6
+        elif col == "FTA": 
+            proj[0]*0.4 + projL10[0] * 0.6
+        elif col == "STL": 
+            proj[0]*0.4 + projL10[0] * 0.6
+        elif col == "BLK": 
+            proj[0]*0.4 + projL10[0] * 0.6
+        elif col == "FG_PCT": 
+            proj[0]*0.4 + projL10[0] * 0.6
+        elif col == "FG3_PCT": 
+            proj[0]*0.4 + projL10[0] * 0.6
+        elif col == "FT_PCT": 
+            proj[0]*0.4 + projL10[0] * 0.6
+        elif col == "MIN": 
+            proj[0]*0.4 + projL10[0] * 0.6
+        elif col == "FG3A": 
+            proj[0]*0.4 + projL10[0] * 0.6
+        elif col == "FGA": 
+            proj[0]*0.4 + projL10[0] * 0.6
+        
 
-        projDict[col] = proj[0]
+        projDict[col] = proj[0] 
+
+    
+    #Gather Relevant Projections
+    fg_attempted = projDict["FGA"]
+    fg_made = projDict["FGM"]
+    fg3_made = projDict["FG3M"]
+    fg3_attempted = projDict['FG3A']
+    fg3_pct = projDict['FG3_PCT']
+    fg_pct = projDict['FG_PCT']
+    pts_proj = projDict['PTS']
+    ftm_proj = projDict['FTM']
+    fg2_att = fg_attempted - fg3_attempted
+
+    ptsMinusFt = pts_proj - ftm_proj
+    fg2_pct = (fg_made - fg3_made)/fg2_att
+
+    if len(d_3s) > 1:
+        d_3s = np.sum(d_3s)/len(d_3s)
+    if len(d_2s) > 1:
+        d_2s = np.sum(d_2s)/ len(d_2s)
+    #d_3s, d_2s
+
+    if fg3_pct - d_3s > 0:
+        pct3offset = fg3_pct - (fg3_pct - d_3s)
+    elif fg3_pct - d_3s < 0:
+        pct3offset = fg3_pct + ((fg3_pct + d_3s)*0.1)
+    
+    if fg2_pct - d_2s > 0:
+        pct2offset = fg2_pct - (fg2_pct - d_2s)
+    elif fg2_pct - d_2s < 0:
+        pct2offset = fg2_pct + ((fg2_pct + d_2s)*0.1)
+
+    print("%3 OFFSET: ", pct3offset, " PROJ %3: ", fg3_pct)
+    print("%2 OFFSET: ", pct2offset, " PROJ %2: ", fg2_pct)
+
+    fg3m = fg3_attempted * pct3offset
+    fg2m = fg2_att * pct2offset
+
+    points = (fg2m *2) + (fg3m * 3) + ftm_proj
+
+    print("DEF ADDED: ", points, " NON DEF ADDED: ", projDict['PTS'])
+
+    projDict["PTS"] = (projDict["PTS"] * 0.25) + (points * 0.75)
 
     # projDict["Team"] = team
 
-    
     return projDict
     
 
@@ -859,7 +1046,7 @@ def modelHead2Head(offPlayer, defPlayer):
 
 #### MAIN FUNCTION: Model Games ####
 def modelGame():
-   # getLineups()
+    #getLineups()
     games = getTodaysGames()
     lineups, out = readInLineups()
 
@@ -894,10 +1081,11 @@ def modelGame():
 
     ## Model 1 game for now ## TODO: Model All Games on Slate 
     all_games = []
+    count = 0
     for game in games:
-
         #print(game)
         homeTeamAbr = game['homeTeam']['teamTricode']
+        
         awayTeamAbr = game['awayTeam']['teamTricode']
 
         homeTeamLineup = []
@@ -942,7 +1130,7 @@ def modelGame():
             "OKC":"Oklahoma City Thunder",
             "ORL":"Orlando Magic",
             "PHI":"Philadelphia 76ers",
-            "PHO":"Phoenix Suns",
+            "PHX":"Phoenix Suns",
             "POR":"Portland Trail Blazers",
             "SAC":"Sacramento Kings",
             "SAS": "San Antonio Spurs",
@@ -969,11 +1157,16 @@ def modelGame():
 
         #modelHead2Head(homeTeamLineup[0], awayTeamLineup)
 
+        count = count + 1
 
+        if count == 6:
+            print(game_dictionary)
+            with open('projections.json', 'w', encoding='utf-8') as f:
+                json.dump(game_dictionary, f, ensure_ascii=False, indent=4)
+            break
         #print(homeTeamAbr, awayTeamAbr)
        # home = teams.find_team_by_abbreviation(homeTeamAbr)
        # away = teams.find_team_by_abbreviation(awayTeamAbr)
-
     #modelTeamWinLoss(away['id'], home['id'])
 
   
@@ -1034,12 +1227,30 @@ def modelGame():
 #models game stats
 #-------------------#
 
-
-
+   
 #getPlayerProjection("Damian Lillard", "Milwaukee Bucks", "Indiana Pacers")
 modelGame()
 
+#tests = playerdashptshotdefend.PlayerDashPtShotDefend(player_id='2544', team_id='0').get_data_frames()[0]
+#test = playerdashptshotdefend.PlayerDashPtShotDefend(player_id='203552',team_id='0').get_data_frames()[0]
 
+#test = pd.concat([test, tests])
+#print(test)
+#d_3s = test.loc[test["DEFENSE_CATEGORY"] == "3 Pointers"]["D_FG_PCT"].to_numpy()
+#d_2s = test.loc[test["DEFENSE_CATEGORY"]== "2 Pointers"]["D_FG_PCT"].to_numpy()
+#print(d_2s)
+#if not test:
+#    raise Exception('fail', 'playerdashptshotdefend')
+#test = playerdashptshotdefend.PlayerDashPtShotDefend(player_id='203552',
+  #      team_id='0').get_data_frames()
+#print(test)
+#sys.sleep()
+#gameLog2023 = playergamelog.PlayerGameLog(203552,2023,'Regular Season').get_data_frames()[0]
+#print(gameLog2023)
+#games = gameLog2023['Game_ID'].to_numpy()
+#d = playerdashptshotdefend.PlayerDashPtShotDefend(player_id="203552", team_id="1610612744", date_to_nullable="12/08/2023", date_from_nullable="10/25/2023")
+
+#print(d.get_data_frames())
 
 ### TEST NN ####
 
