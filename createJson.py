@@ -36,6 +36,8 @@ for line in lines:
                 print(dic[d])
             else:
                 
+                dic[d]['team'] = line['team']
+
                 if line['fanduel_pts'] != "" or line['fanduel_pts'] != None:
                     try:
                         if line['fanduel_pts'] == None:

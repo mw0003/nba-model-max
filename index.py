@@ -5,7 +5,7 @@
 #career stats
 from calendar import c
 from queue import Empty
-from nba_api.stats.endpoints import playercareerstats, playergamelog, teamestimatedmetrics,playerdashptshotdefend, commonplayerinfo
+from nba_api.stats.endpoints import playercareerstats, playergamelog, teamestimatedmetrics,playerdashptshotdefend, commonplayerinfo, teamplayeronoffdetails
 from nba_api.stats.static import players
 from nba_api.stats.static import teams
 from nba_api.stats.library.parameters import RunType
@@ -174,6 +174,13 @@ def linearProjectionTrackBox(df1, colname):
         next_date += 1
         print(next_date)
     return forecast_set
+
+
+#on/off summary
+
+def onOffDF():
+    df = teamplayeronoffdetails.TeamPlayerOnOffDetails().get_data_frames()
+    print(df)
 
 #projections for player stats by game logs
 def linearProjection(player_game_log, colname, loglast):
@@ -596,7 +603,13 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
     oppTeamDefRtg = dfs.loc[dfs['TEAM_NAME'] == opposingTeam]['E_DEF_RATING'].values[0]
 
     teamPace = dfs.loc[dfs['TEAM_NAME'] == team]['E_PACE']
-    teamPace = teamPace.values[0]
+
+    if teamPace.empty:
+        teamPace = 100
+    else:
+        teamPace = teamPace.values[0]
+
+    
 
     offset = teamPace-100
     ptsper100pos = oppTeamDefRtg/100
@@ -649,6 +662,8 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
         if col == "PTS":
             print("PROJ: ", proj[0])
             print("USG: ", usgToPoints)
+            if type(usgToPoints) ==list:
+                usgToPoints = usgToPoints[0]
             proj[0] = proj[0]*0.25 +usgToPoints*0.2 + ptsTotal*0.3 + projL10[0]*0.25
 
             print(proj[0])
