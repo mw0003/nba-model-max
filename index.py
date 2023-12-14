@@ -5,7 +5,7 @@
 #career stats
 from calendar import c
 from queue import Empty
-from nba_api.stats.endpoints import playercareerstats, playergamelog, teamestimatedmetrics,playerdashptshotdefend, commonplayerinfo, teamplayeronoffdetails
+from nba_api.stats.endpoints import playercareerstats, playergamelog, teamestimatedmetrics,playerdashptshotdefend, commonplayerinfo, teamplayeronoffdetails, leaguelineupviz
 from nba_api.stats.static import players
 from nba_api.stats.static import teams
 from nba_api.stats.library.parameters import RunType
@@ -21,7 +21,7 @@ from nba_api.live.nba.endpoints import boxscore
 
 
 from nba_api.stats.static import teams, players
-from nba_api.stats.endpoints import cumestatsteamgames, cumestatsteam, gamerotation, matchupsrollup,winprobabilitypbp,boxscoreadvancedv3, playervsplayer, boxscoreplayertrackv3
+from nba_api.stats.endpoints import cumestatsteamgames, cumestatsteam, gamerotation, matchupsrollup,winprobabilitypbp,boxscoreadvancedv3, playervsplayer, boxscoreplayertrackv3, teamandplayersvsplayers
 import pandas as pd
 import numpy as np
 import json
@@ -33,6 +33,8 @@ from nn import *
 
 from runtype import Dispatch
 dp = Dispatch()
+
+#TODO : PLayers on/off details, Rest days details
 
 #import sklearn
 from scipy import stats
@@ -51,7 +53,19 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn import preprocessing 
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, mean_squared_error
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.datasets import make_regression
+import sklearn
+import warnings
+ 
+from sklearn.preprocessing import LabelEncoder
+from sklearn.impute import KNNImputer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import f1_score
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import cross_val_score
 
 import json
 
@@ -123,6 +137,124 @@ def readInLineups():
    # print(df)
 
     return df, df2
+
+def nonlinearProjection(player_game_log, col):
+
+    df = player_game_log[[
+            "SEASON_ID",
+            "Player_ID",
+            "Game_ID",
+            "GAME_DATE",
+            "MATCHUP",
+            "WL",
+            "MIN",
+            "FGM",
+            "FGA",
+            "FG_PCT",
+            "FG3M",
+            "FG3A",
+            "FG3_PCT",
+            "FTM",
+            "FTA",
+            "FT_PCT",
+            "OREB",
+            "DREB",
+            "REB",
+            "AST",
+            "STL",
+            "BLK",
+            "TOV",
+            "PF",
+            "PTS",
+            "PLUS_MINUS",
+            "VIDEO_AVAILABLE"
+        ]]
+    forecast_col = col
+    forecast_out = int(math.ceil(0.01 * len(df)))
+    print("out: ", forecast_out)
+    df['label'] = df[forecast_col]
+
+    print(df)
+    print("DF LABEL: ", df['label'])
+    df2 = df['label']
+    X = np.array(range(len(df2))).reshape(-1, 1)
+
+    print(X)
+    X = preprocessing.scale(X)
+    X_lately = X[-forecast_out:]
+    #X = X[:-forecast_out]
+    print("LATELY", X_lately)
+
+    df.dropna(inplace=True)
+
+    y = np.array(df['label'])
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3,random_state=42)
+
+    regressor = RandomForestRegressor()
+  #  clf = LinearRegression(n_jobs=-1)
+   # clf.fit(X_train, y_train)
+    regressor.fit(X_train, y_train)
+    predictions = regressor.predict(X_test)
+    conf = regressor.score(X_test, y_test)
+
+    print(predictions)
+    print(conf)
+
+    #print( X_train, X_test, y_train, y_test)
+   # confidence = clf.score(X_test, y_test)
+
+    #print("confidence Score: ", confidence)
+   # forecast_set = clf.predict(X_lately)
+   # print("projection: ", forecast_set)
+   # df['Forecast'] = np.nan
+
+   # last_date = df.iloc[-1].name
+  #  print(last_date)
+  #  next_date = last_date+1
+   # for i in forecast_set:
+   #     df.loc[next_date] = [np.nan for _ in range(len(df.columns)-1)]+[i]
+   #     next_date += 1
+   #     print(next_date)
+    return predictions
+
+
+    # Assuming df is your DataFrame
+   # X = df.iloc[:,1:2].values  #features
+   # y = df.iloc[:,col].values  # Target variable
+   # label_encoder = LabelEncoder()
+   # x_categorical = df.select_dtypes(include=['object']).apply(label_encoder.fit_transform)
+   # x_numerical = df.select_dtypes(exclude=['object']).values
+   # x = pd.concat([pd.DataFrame(x_numerical), x_categorical], axis=1).values
+
+    # Fitting Random Forest Regression to the dataset
+   # regressor = RandomForestRegressor(n_estimators=10, random_state=0, oob_score=True)
+
+    # Fit the regressor with x and y data
+  #  regressor.fit(x, y)
+   # oob_score = regressor.oob_score_
+   # print(f'Out-of-Bag Score: {oob_score}')
+    
+    # Making predictions on the same data or new data
+  #  predictions = regressor.predict(x)
+    
+    # Evaluating the model
+  #  mse = mean_squared_error(y, predictions)
+  #  print(f'Mean Squared Error: {mse}')
+    
+   # r2 = r2_score(y, predictions)
+  #  print(f'R-squared: {r2}')
+
+  #  print("Predictions: ", predictions)
+
+
+def lineupViz():
+    df = leaguelineupviz.LeagueLineupViz().get_data_frames()
+    print(df)
+
+def teamvplayerOnOff():
+    df = teamandplayersvsplayers.TeamAndPlayersVsPlayers().get_data_frames()
+    print(df)
 
 def defensiveStats(playerId, oppTeam):
     test = playerdashptshotdefend.PlayerDashPtShotDefend(player_id=playerId,
@@ -378,8 +510,98 @@ def getAdvBoxScore(gameid, playerid):
    # print(newDF)
     return newDF
 
-#run player projections
-def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
+
+def onOff(playerId, player2Id):
+    dic = playervsplayer.PlayerVsPlayer(vs_player_id=player2Id, player_id=playerId).get_data_frames()
+
+    if dic[0].empty or dic[1].empty:
+        return None
+
+    overall = dic[0]
+
+    #get individualized rows
+    player1row = overall.loc[overall["PLAYER_ID"] == player2Id]
+    player2row = overall.loc[overall["PLAYER_ID"] == playerId]
+
+    pminpg = player2row['MIN']/player2row['GP']
+
+    print(pminpg[0])
+
+    onoff = dic[1]
+    onRow = onoff.loc[onoff["COURT_STATUS"] == "On"]
+    offRow = onoff.loc[onoff["COURT_STATUS"] == "Off"]
+
+    print(onRow)
+    print(offRow)
+    if offRow.empty or onRow.empty:
+        return None
+
+    ppgON = onRow["PTS"].values[0]
+    ppgOFF = offRow["PTS"].values[0]
+
+    fgaOn = onRow["FGA"].values[0]
+    fgsOff = offRow["FGA"].values[0]
+
+    fg3On = onRow["FG3M"].values[0]
+    fg3Off = offRow["FG3M"].values[0]
+
+    gmOff= offRow["MIN"].values[0]
+    gmOn = onRow["MIN"].values[0]
+
+    astOn = onRow["AST"].values[0]
+    astOff = offRow["AST"].values[0]
+
+    rebOn = onRow["REB"].values[0]
+    rebOff = offRow["REB"].values[0]
+
+    stlOn = onRow["STL"].values[0]
+    stlOff = offRow["STL"].values[0]
+
+    blkOn = onRow["BLK"].values[0]
+    blkOff = offRow["BLK"].values[0]
+
+    gmOn = gmOn/pminpg[0]
+    gmOff = gmOff/pminpg[0]
+
+    print(gmOff, gmOn)
+
+    
+
+    ppgON= ppgON/gmOn
+    ppgOFF = ppgOFF/gmOff
+
+    fgapgON = fgaOn / gmOn
+    fgapgOFF = fgsOff / gmOff
+
+    fg3pgON = fg3On / gmOn
+    fg3pgOFF = fg3Off / gmOff
+
+    astOn = astOn/ gmOn
+    astOff = astOff / gmOff
+
+    stlOn = stlOn/ gmOn
+    stlOff = stlOff / gmOff
+
+    blkOn = blkOn/ gmOn
+    blkOff = blkOff / gmOff
+
+    rebOn = rebOn/ gmOn
+    rebOff = rebOff / gmOff
+
+    print("ON: ",  fg3pgON,"OFF: ", fg3pgOFF)
+    dictionary = {
+        "PTSOFF" : ppgOFF,
+        "ASTOFF": astOff,
+        "FGAOFF": fgapgOFF,
+        "3sOFF": fg3pgOFF,
+        "REBOFF": rebOff,
+        "STLOFF": stlOff,
+        "BLKOFF": blkOff
+    }
+    return dictionary
+
+# MAIN FUNC FOR PLAYER PROJECTIONS
+def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, playersOut):
     
     player = players.find_players_by_full_name(playerName)
     print(player[0])
@@ -600,7 +822,11 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
     mets = teamestimatedmetrics.TeamEstimatedMetrics()
     dfs = mets.get_data_frames()[0]
 
-    oppTeamDefRtg = dfs.loc[dfs['TEAM_NAME'] == opposingTeam]['E_DEF_RATING'].values[0]
+    oppTeamDefRtg = dfs.loc[dfs['TEAM_NAME'] == opposingTeam]['E_DEF_RATING']
+    tem =dfs.loc[dfs['TEAM_NAME'] == "Indiana Pacers"]
+
+    opposingTeam = tem['TEAM_ID'].values[0]
+
 
     teamPace = dfs.loc[dfs['TEAM_NAME'] == team]['E_PACE']
 
@@ -609,7 +835,57 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
     else:
         teamPace = teamPace.values[0]
 
+    dic = matchupsrollup.MatchupsRollup(def_team_id_nullable=opposingTeam, off_player_id_nullable=player[0]['id']).get_data_frames()[0]
+
+    if dic.empty:
+        print("empty matchup")
+        ptsvteam = None
+        astvteam = None
+        blkvteam = None
+    else:
+        row = dic.loc[dic["POSITION"] == "TOTAL"]
+        gp = row['GP'].values[0]
+        ptsvteam = row['PLAYER_PTS'].values[0]/gp
+        astvteam = row['MATCHUP_AST'].values[0]/gp
+        blkvteam = row["MATCHUP_BLK"].values[0]/gp
+        print(ptsvteam, astvteam, blkvteam)
+
     
+
+    #PLAYERS OFF LOOKUP
+    offDic = {}
+    count = 0
+    for key in playersOut:
+        if playersOut[key] == team:
+            print("TEAM PLAYER FOUND")
+            if not offDic:
+                offDic1 = onOff(player[0]['id'], key)
+                print(offDic1)
+                offDic = offDic1
+                count = count +1
+            else:
+                count = count + 1
+                print("TEAM PLAYER FOUND2 ")
+                onOffDict = onOff(player[0]['id'], key)
+                print(onOffDict)
+                if onOffDict:
+                    offDic["PTSOFF"] = offDic["PTSOFF"]*(0.5 + 0.5/count) + onOffDict['PTSOFF'] *(0.5/count)
+                    offDic["ASTOFF"] = offDic["ASTOFF"]*(0.5 + 0.5/count) + onOffDict['ASTOFF'] *(0.5/count)
+                    offDic["FGAOFF"] = offDic["FGAOFF"]*(0.5 + 0.5/count) + onOffDict['FGAOFF'] *(0.5/count)
+                    offDic["3sOFF"] = offDic["3sOFF"]*(0.5 + 0.5/count) + onOffDict['3sOFF'] *(0.5/count)
+                    offDic["REBOFF"] = offDic["REBOFF"]*(0.5 + 0.5/count) + onOffDict['REBOFF'] *(0.5/count)
+                    offDic["STLOFF"] = offDic["STLOFF"]*(0.5 + 0.5/count) + onOffDict['STLOFF'] *(0.5/count)
+                    offDic["BLKOFF"] = offDic["BLKOFF"]*(0.5 + 0.5/count) + onOffDict['BLKOFF'] *(0.5/count)
+
+    if not offDic:
+        print("EMPTY")
+    else:
+        print("OFF DICT: ", offDic)
+    
+
+    #TEAM DEFENSE
+
+    teamvpts, teamvast, teamvreb = teamdef(team, playerPosition)
 
     offset = teamPace-100
     ptsper100pos = oppTeamDefRtg/100
@@ -659,43 +935,52 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
     for col in columnsOfValue:
         proj = linearProjection(gamesdf2023, col, gamesdf2022)
         projL10 = linearOneProjection(lastTen, col)
+        nlProj = nonlinearProjection(gamesdf2023, col)
+        projnl = sum(nlProj)/len(nlProj)
         if col == "PTS":
             print("PROJ: ", proj[0])
             print("USG: ", usgToPoints)
+            print(ptsTotal)
             if type(usgToPoints) ==list:
                 usgToPoints = usgToPoints[0]
-            proj[0] = proj[0]*0.25 +usgToPoints*0.2 + ptsTotal*0.3 + projL10[0]*0.25
+            if ptsvteam != None:
+                proj[0] = proj[0]*0.3 +usgToPoints*0.2+  projL10[0]*0.1 + projnl *0.2 + ptsvteam *0.2
+            else:
+                proj[0] = proj[0]*0.3 +usgToPoints*0.3 + projL10[0]*0.1 + projnl *0.3
 
             print(proj[0])
             print("USG2PTS: ", usgToPoints)
             print("PACE&RATING TO PTS: ", ptsTotal )
             print("ADJ RATING: ", pacenRating)
         elif col == "AST":
-            proj[0] = proj[0]*0.15 + astTotal*0.4 + astByPass*0.2 + projL10[0]*0.25
+            if astvteam != None:
+                proj[0] = proj[0]*0.3+ astByPass*0.2 + projL10[0]*0.1 + projnl *0.2 + astvteam*0.2
+            else:
+                proj[0] = proj[0]*0.3 + astByPass*0.2 + projL10[0]*0.1 + projnl *0.4
         elif col == "FGM":
-            proj[0] = proj[0]*0.25 + sumFGM *0.45 + projL10[0] * 0.3
+            proj[0] = proj[0]*0.4 + sumFGM *0.25 + projL10[0] * 0.15  + projnl *0.2
         elif col == "REB":
-            proj[0] = proj[0]*0.15 + rebs2 * 0.65 + projL10[0] * 0.2
+            proj[0] = proj[0]*0.35 + rebs2 * 0.3 + projL10[0] * 0.15 +  + projnl *0.2
         elif col == "FTM": 
-            proj[0]*0.4 + projL10[0] * 0.6
+            proj[0]*0.5 + projL10[0] * 0.3 +  + projnl *0.2
         elif col == "FTA": 
-            proj[0]*0.4 + projL10[0] * 0.6
+            proj[0]*0.5 + projL10[0] * 0.3 + projnl *0.2
         elif col == "STL": 
-            proj[0]*0.4 + projL10[0] * 0.6
+            proj[0]*0.5 + projL10[0] * 0.3 + projnl *0.2
         elif col == "BLK": 
-            proj[0]*0.4 + projL10[0] * 0.6
+            proj[0]*0.5 + projL10[0] * 0.3  + projnl *0.2
         elif col == "FG_PCT": 
-            proj[0]*0.4 + projL10[0] * 0.6
+            proj[0]*0.5 + projL10[0] * 0.3 + projnl *0.2
         elif col == "FG3_PCT": 
-            proj[0]*0.4 + projL10[0] * 0.6
+            proj[0]*0.5 + projL10[0] * 0.3 + projnl *0.2
         elif col == "FT_PCT": 
-            proj[0]*0.4 + projL10[0] * 0.6
+            proj[0]*0.5 + projL10[0] * 0.3 + projnl *0.2
         elif col == "MIN": 
-            proj[0]*0.4 + projL10[0] * 0.6
+            proj[0]*0.5 + projL10[0] * 0.3 + projnl *0.2
         elif col == "FG3A": 
-            proj[0]*0.4 + projL10[0] * 0.6
+            proj[0]*0.5 + projL10[0] * 0.3 + projnl *0.2
         elif col == "FGA": 
-            proj[0]*0.4 + projL10[0] * 0.6
+            proj[0]*0.5 + projL10[0] * 0.3 + projnl *0.2
         
 
         projDict[col] = proj[0] 
@@ -743,7 +1028,22 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup):
 
     projDict["PTS"] = (projDict["PTS"] * 0.25) + (points * 0.75)
 
+    if not offDic:
+        print("NO PLAYERS OUT")
+    else:
+        projDict["PTS"] =  projDict["PTS"] *0.7 + offDic["PTSOFF"]*0.3
+        projDict["AST"] =  projDict["AST"] *0.7 + offDic["ASTOFF"]*0.3
+        projDict["FG3M"] =  projDict["FG3M"] *0.7 + offDic["3sOFF"]*0.3
+        projDict["REB"] =  projDict["REB"] *0.7 + offDic["REBOFF"]*0.3
+        projDict["BLK"] =  projDict["BLK"] *0.7 + offDic["BLKOFF"]*0.3
+        projDict["STL"] =  projDict["STL"] *0.7 + offDic["STLOFF"]*0.3
+
     # projDict["Team"] = team
+
+    projDict["PTS"] =  projDict["PTS"] *0.7 + (projDict["PTS"] * teamvpts) *0.3
+    projDict["AST"] =  projDict["AST"] *0.7 + (projDict["AST"] * teamvast)*0.3
+    projDict["REB"] =  projDict["REB"] *0.7 + (projDict["REB"] * teamvreb)*0.3
+    
 
     return projDict
     
@@ -1058,21 +1358,42 @@ def modelHead2Head(offPlayer, defPlayer):
     else:
         fullMatchups.to_csv('h2h.csv', sep='\t', encoding='utf-8')
    
-
-#### MAIN FUNCTION: Model Games ####
-def modelGame():
-    #getLineups()
-    games = getTodaysGames()
+#RUN TO LOAD IN LINEUPS TO JSON PREMODEL
+def getJsonLineups():
     lineups, out = readInLineups()
 
     #TODO: Set full game dictionary?
 
-    game_dictionary = {}
     allplayers = lineups[[0]].to_numpy()
-    startingLineupsDict = {}
 
+    playersout = out[[0]].to_numpy()
+
+    playersoutDict ={}
+
+    startingLineupsDict = {}
     startingLineupsByName = {}
 
+    for p in playersout:
+        
+        time.sleep(.600)
+        player = findplayer(p[0])
+        print(player)
+        gameLog2023 = playergamelog.PlayerGameLog(player[0]['id'],2023,'Regular Season')
+        gamesdf2023 = gameLog2023.get_data_frames()[0]
+        #print(gamesdf2023)
+        if gamesdf2023.empty:
+            print(p)
+        else:
+            matchup = gamesdf2023.iloc[0]['MATCHUP']
+
+        #Get player current team
+        teams = matchup.split(" ")
+        player_team = teams[0]
+        playersoutDict[player[0]['id']] = player_team
+        #startingLineupsByName[player[0]["full_name"]] = player_team
+    with open('playersOutDict.json', 'w', encoding='utf-8') as f:
+        json.dump(playersoutDict, f, ensure_ascii=False, indent=4)
+   # print(playersoutDict)
     for p in allplayers:
         
         time.sleep(.600)
@@ -1092,10 +1413,94 @@ def modelGame():
         startingLineupsDict[player[0]['id']] = player_team
         startingLineupsByName[player[0]["full_name"]] = player_team
     
+    with open('startingLineupsDict.json', 'w', encoding='utf-8') as f:
+        json.dump(startingLineupsDict, f, ensure_ascii=False, indent=4)
+    with open('startingLineupsByName.json', 'w', encoding='utf-8') as f:
+        json.dump(startingLineupsByName, f, ensure_ascii=False, indent=4)
 
 
+def teamdef(teamName, position):
+
+    from statistics import median
+
+    with open('defensevposition.json') as json_file:
+            defensestats = json.load(json_file)
+
+    teamName = "OKC"
+    positions = {
+        "G": "PG",
+        "SG": "SG",
+        "SF": "SF",
+        "F": "SF",
+        "C": "C"
+    }
+
+    pp = ""
+    for key in positions:
+        if key == position:
+            pp = positions[key]
+
+    ppgavg = []
+    astavg = []
+    rebavg = []
+
+
+    for key in defensestats:
+
+        team = key['TEAM'].split(" ")[0]
+        position = key['POSITION'].split(" ")[0]
+
+        if pp == position:
+            ppgavg.append( float(key['PTS'].split(" ")[0]))
+            astavg.append( float(key['AST'].split(" ")[0]))
+            rebavg.append(float(key['REB'].split(" ")[0]))
+
+    leagueAvgPts = median(ppgavg)
+    leagueAvgAst = median(astavg)
+    leagueAvgReb = median(rebavg)
+
+    print(leagueAvgPts, leagueAvgAst, leagueAvgReb)
+
+    for key in defensestats:
+        team = key['TEAM'].split(" ")[0]
+        position = key['POSITION'].split(" ")[0]
+
+        if pp == position and team == teamName:
+            
+            ppg = float(key['PTS'].split(" ")[0])
+            ast = float(key['AST'].split(" ")[0])
+            reb = float(key['REB'].split(" ")[0])
+
+            ptsRatio = ppg/leagueAvgPts
+            astRatio = ast/leagueAvgAst
+            rebRatio = reb/leagueAvgReb
+
+            print(ptsRatio, astRatio, rebRatio)
+            print("FOUND")
+    
+    return ptsRatio, astRatio, rebRatio
+
+#### MAIN FUNCTION: Model Games ####
+def modelGame():
+   # getLineups()
+    #getJsonLineups()
+
+    games = getTodaysGames()
+    
+    game_dictionary = {}
     ## Model 1 game for now ## TODO: Model All Games on Slate 
     all_games = []
+
+    with open('startingLineupsByName.json') as json_file:
+        startingLineupsByName = json.load(json_file)
+
+    with open('startingLineupsDict.json') as json_file:
+        startingLineupsDict = json.load(json_file)
+
+    with open('playersOutDict.json') as json_file:
+        playersoutDict = json.load(json_file)
+
+
     count = 0
     for game in games:
         #print(game)
@@ -1162,23 +1567,17 @@ def modelGame():
         
         for player in homeTeamLineupNames:
             time.sleep(.600)
-            player_dict = getPlayerProjection(player, teams[homeTeamAbr], teams[awayTeamAbr], awayTeamLineup)
+            player_dict = getPlayerProjection(player, teams[homeTeamAbr], teams[awayTeamAbr], awayTeamLineup, playersoutDict)
             game_dictionary[player] = player_dict
     
         for player in awayTeamLineupNames:
             time.sleep(.600)
-            player_dict = getPlayerProjection(player, teams[homeTeamAbr], teams[awayTeamAbr], homeTeamLineup)
+            player_dict = getPlayerProjection(player, teams[homeTeamAbr], teams[awayTeamAbr], homeTeamLineup, playersoutDict)
             game_dictionary[player] = player_dict
 
         #modelHead2Head(homeTeamLineup[0], awayTeamLineup)
 
-        count = count + 1
-
-        if count == 6:
-            print(game_dictionary)
-            with open('projections.json', 'w', encoding='utf-8') as f:
-                json.dump(game_dictionary, f, ensure_ascii=False, indent=4)
-            break
+       
         #print(homeTeamAbr, awayTeamAbr)
        # home = teams.find_team_by_abbreviation(homeTeamAbr)
        # away = teams.find_team_by_abbreviation(awayTeamAbr)
@@ -1244,6 +1643,10 @@ def modelGame():
 
    
 #getPlayerProjection("Damian Lillard", "Milwaukee Bucks", "Indiana Pacers")
+#gameLog2023 = playergamelog.PlayerGameLog("203507",2023,'Regular Season').get_data_frames()[0]
+#nl = nonlinearProjection(gameLog2023, "PTS")
+#print(sum(nl)/len(nl))
+
 modelGame()
 
 #tests = playerdashptshotdefend.PlayerDashPtShotDefend(player_id='2544', team_id='0').get_data_frames()[0]

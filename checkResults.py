@@ -22,7 +22,7 @@ with open('data.json') as json_file:
     proj = json.load(json_file)
  
 
-games = ['0022300295', '0022300294','0022300293','0022300292','0022300297','0022300296','0022300298']
+#games = ['0022300295', '0022300294','0022300293','0022300292','0022300297','0022300296','0022300298']
 
 
 correctPicks = 0
@@ -49,9 +49,10 @@ incorrectThree = 0
 results ={}
 
 #UNCOMMENT IF RUNNING BEFORE 10AM NEXT DAY
-#board = scoreboard.ScoreBoard()
-#games = board.games.get_dict()
+board = scoreboard.ScoreBoard()
+games = board.games.get_dict()
 
+#print(games)
 
 for game in games:
 
@@ -62,17 +63,18 @@ for game in games:
 
     ##IF Running before 10Am MTN next day USE BOXSCORE
     
-    ##----- box = boxscore.BoxScore(game_id=game['gameId'])
+    box = boxscore.BoxScore(game_id=game['gameId'])
 
-    #awayStats = box.away_team_player_stats.get_dict()
-    #homeStats = box.home_team_player_stats.get_dict()
+
+    awayStats = box.away_team_player_stats.get_dict()
+    homeStats = box.home_team_player_stats.get_dict()
 
     ##ELSE USE BOXSCORE TRADITIONAL
 
-    box = boxscoretraditionalv3.BoxScoreTraditionalV3(game_id=game).get_dict()
+   # box = boxscoretraditionalv3.BoxScoreTraditionalV3(game_id=game).get_dict()
     
-    homeStats = box['boxScoreTraditional']['homeTeam']['players']
-    awayStats = box['boxScoreTraditional']['awayTeam']['players']
+    #homeStats = box['boxScoreTraditional']['homeTeam']['players']
+    #awayStats = box['boxScoreTraditional']['awayTeam']['players']
     #print(box['player_stats'])
 
    #print(homeStats)
@@ -80,7 +82,10 @@ for game in games:
     for pl in homeStats:
         #print(pl)
         for item in proj:
+
             if (pl['firstName'] + " " +pl['familyName'] ==item):
+
+                print(item)
                 #check for NA projections
                 if proj[item] != "N/A":
                     #handle Points
