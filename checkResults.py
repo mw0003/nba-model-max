@@ -199,20 +199,20 @@ for game in games:
                             print("CORRECT")
                             results[item] = proj[item]
                             results[item]['threes_res'] = "W"
-                            correctPicks = correctPicks +1
-                            correctBlk = correctBlk +1
+                         #   correctPicks = correctPicks +1
+                         #   correctBlk = correctBlk +1
                         elif pl['statistics']['blocks'] < proj[item]['fanduel_blk'] and proj[item]['pick_blk'] == "UNDER":
                             print("CORRECT")
                             results[item] = proj[item]
                             results[item]['blk_res'] = "W"
-                            correctPicks = correctPicks +1
-                            correctBlk = correctBlk +1
+                          #  correctPicks = correctPicks +1
+                          #  correctBlk = correctBlk +1
                         else:
                             print("INCORRECT")
                             results[item] = proj[item]
                             results[item]['blk_res'] = "L"
-                            incorrectPicks = incorrectPicks + 1
-                            incorrectBlk = incorrectBlk +1
+                            #incorrectPicks = incorrectPicks + 1
+                           # incorrectBlk = incorrectBlk +1
                # print(proj[item])
 
            # results[line] = line
@@ -220,10 +220,12 @@ for game in games:
            # results[line]['pts_res'] = "W"
             
 
+
 for pl in awayStats:
         #print(pl)
         for item in proj:
             if (pl['firstName'] + " " +pl['familyName'] ==item):
+                print("AWAY TEAM")
                 #check for NA projections
                 if proj[item] != "N/A":
                     #handle Points
@@ -233,16 +235,19 @@ for pl in awayStats:
                             results[item] = proj[item]
                             results[item]['pts_res'] = "W"
                             correctPicks = correctPicks +1
+                            correctPts = correctPts +1
                         elif pl['statistics']['points'] < proj[item]['fanduel_pts'] and proj[item]['pick_pts'] == "UNDER":
                             print("CORRECT")
                             results[item] = proj[item]
                             results[item]['pts_res'] = "W"
                             correctPicks = correctPicks +1
+                            correctPts = correctPts +1
                         else:
                             print("INCORRECT")
                             results[item] = proj[item]
                             results[item]['pts_res'] = "L"
                             incorrectPicks = incorrectPicks + 1
+                            incorrectPts = incorrectPts + 1
 
                     if pl['statistics']['assists'] > -1 and 'fanduel_ast' in proj[item]:
 
@@ -251,16 +256,19 @@ for pl in awayStats:
                             results[item] = proj[item]
                             results[item]['ast_res'] = "W"
                             correctPicks = correctPicks +1
+                            correctAst = correctAst +1
                         elif pl['statistics']['assists'] < proj[item]['fanduel_ast'] and proj[item]['pick_ast'] == "UNDER":
                             print("CORRECT")
                             results[item] = proj[item]
                             results[item]['ast_res'] = "W"
                             correctPicks = correctPicks +1
+                            correctAst = correctAst +1
                         else:
                             print("INCORRECT")
                             results[item] = proj[item]
                             results[item]['ast_res'] = "L"
                             incorrectPicks = incorrectPicks + 1
+                            incorrectAst = incorrectAst +1
 
                     if pl['statistics']['reboundsTotal'] > -1 and 'fanduel_reb' in proj[item]:
 
@@ -269,16 +277,19 @@ for pl in awayStats:
                             results[item] = proj[item]
                             results[item]['ast_res'] = "W"
                             correctPicks = correctPicks +1
+                            correctReb = correctReb + 1
                         elif pl['statistics']['reboundsTotal'] < proj[item]['fanduel_reb'] and proj[item]['pick_reb'] == "UNDER":
                             print("CORRECT")
                             results[item] = proj[item]
                             results[item]['reb_res'] = "W"
                             correctPicks = correctPicks +1
+                            correctReb = correctReb + 1
                         else:
                             print("INCORRECT")
                             results[item] = proj[item]
                             results[item]['reb_res'] = "L"
                             incorrectPicks = incorrectPicks + 1
+                            incorrectReb = incorrectReb + 1
 
                     if pl['statistics']['steals'] > -1 and 'fanduel_stl' in proj[item]:
 
@@ -287,16 +298,19 @@ for pl in awayStats:
                             results[item] = proj[item]
                             results[item]['stl_res'] = "W"
                             correctPicks = correctPicks +1
+                            correctStl = correctStl + 1
                         elif pl['statistics']['steals'] < proj[item]['fanduel_stl'] and proj[item]['pick_stl'] == "UNDER":
                             print("CORRECT")
                             results[item] = proj[item]
                             results[item]['stl_res'] = "W"
                             correctPicks = correctPicks +1
+                            correctStl = correctStl + 1
                         else:
                             print("INCORRECT")
                             results[item] = proj[item]
                             results[item]['stl_res'] = "L"
                             incorrectPicks = incorrectPicks + 1
+                            incorrectStl = incorrectStl + 1
 
                     if pl['statistics']['threePointersMade'] > -1 and 'fanduel_threes' in proj[item]:
 
@@ -305,16 +319,19 @@ for pl in awayStats:
                             results[item] = proj[item]
                             results['threes_res'] = "W"
                             correctPicks = correctPicks +1
+                            correctThree = correctThree + 1
                         elif pl['statistics']['threePointersMade'] < proj[item]['fanduel_threes'] and proj[item]['pick_3s'] == "UNDER":
                             print("CORRECT")
                             results[item] = proj[item]
                             results['threes_res'] = "W"
                             correctPicks = correctPicks +1
+                            correctThree = correctThree + 1
                         else:
                             print("INCORRECT")
                             results[item] = proj[item]
                             results[item]['threes_res'] = "L"
                             incorrectPicks = incorrectPicks + 1
+                            incorrectThree = incorrectThree + 1
 
                     if pl['statistics']['blocks'] > -1 and 'fanduel_blk' in proj[item]:
 
@@ -322,17 +339,17 @@ for pl in awayStats:
                             print("CORRECT")
                             results[item] = proj[item]
                             results[item]['threes_res'] = "W"
-                            correctPicks = correctPicks +1
+                            #correctPicks = correctPicks +1
                         elif pl['statistics']['blocks'] < proj[item]['fanduel_blk'] and proj[item]['pick_blk'] == "UNDER":
                             print("CORRECT")
                             results[item] = proj[item]
                             results[item]['blk_res'] = "W"
-                            correctPicks = correctPicks +1
+                           # correctPicks = correctPicks +1
                         else:
                             print("INCORRECT")
                             results[item] = proj[item]
                             results[item]['blk_res'] = "L"
-                            incorrectPicks = incorrectPicks + 1
+                           # incorrectPicks = incorrectPicks + 1
 
 
 #print(results)
@@ -372,11 +389,11 @@ print("ACCURACY: ", correctStl/(correctStl+incorrectStl))
 
 results['stl'] = correctStl/(correctStl+incorrectStl)
 
-print("CORRECT Blk: ", correctBlk)
-print("INCORRECT: " ,incorrectBlk)
-print("ACCURACY: ", correctBlk/(correctBlk+incorrectBlk))
+#print("CORRECT Blk: ", correctBlk)
+#print("INCORRECT: " ,incorrectBlk)
+#print("ACCURACY: ", correctBlk/(correctBlk+incorrectBlk))
 
-results['blk'] = correctBlk/(correctBlk+incorrectBlk)
+#results['blk'] = correctBlk/(correctBlk+incorrectBlk)
 
 
 dt = yesterday()
