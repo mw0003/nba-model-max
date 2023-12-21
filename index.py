@@ -615,7 +615,24 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
 
     #Get last 10 games
     lastTen = gamesdf2023.head(15)
+    last5  = gamesdf2023.head(5)
+
+    last5pts = last5['PTS'].to_numpy()
+    last5ast = last5['AST'].to_numpy()
+    last5reb = last5['REB'].to_numpy()
+
+    if len(last5pts) > 0:
+
+        last5ptsavg = sum(last5pts)/len(last5pts)
+        print("LAST 5" , last5ptsavg, type(last5ptsavg))
+        last5astavg = sum(last5ast)/len(last5ast)
+        last5rebavg = sum(last5reb)/len(last5reb)
+    else: 
+        last5ptsavg = None
+        last5astavg = None
+        last5rebavg = None
     
+
     #gameIds = gamesdf2023["Game_ID"].to_list()
     #print(lastTen)
 
@@ -941,26 +958,32 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
             print("PROJ: ", proj[0])
             print("USG: ", usgToPoints)
             print(ptsTotal)
+            if last5ptsavg == None:
+                last5ptsavg = projL10[0]
             if type(usgToPoints) ==list:
                 usgToPoints = usgToPoints[0]
             if ptsvteam != None:
-                proj[0] = proj[0]*0.3 +usgToPoints*0.2+  projL10[0]*0.1 + projnl *0.2 + ptsvteam *0.2
+                proj[0] = proj[0]*0.15 +usgToPoints*0.1+  projL10[0]*0.1 + projnl *0.1 + ptsvteam *0.15+ last5ptsavg *0.4
             else:
-                proj[0] = proj[0]*0.3 +usgToPoints*0.3 + projL10[0]*0.1 + projnl *0.3
+                proj[0] = proj[0]*0.15 +usgToPoints*0.3 + projL10[0]*0.1 + projnl *0.3 + last5ptsavg *0.15
 
             print(proj[0])
             print("USG2PTS: ", usgToPoints)
             print("PACE&RATING TO PTS: ", ptsTotal )
             print("ADJ RATING: ", pacenRating)
         elif col == "AST":
+            if last5astavg == None:
+                last5astavg = projL10[0]
             if astvteam != None:
-                proj[0] = proj[0]*0.3+ astByPass*0.2 + projL10[0]*0.1 + projnl *0.2 + astvteam*0.2
+                proj[0] = proj[0]*0.1+ astByPass*0.2 + projL10[0]*0.1 + projnl *0.15 + astvteam*0.15 + last5astavg *0.3
             else:
-                proj[0] = proj[0]*0.3 + astByPass*0.2 + projL10[0]*0.1 + projnl *0.4
+                proj[0] = proj[0]*0.1 + astByPass*0.2 + projL10[0]*0.1 + projnl *0.2+ last5astavg *0.4
         elif col == "FGM":
             proj[0] = proj[0]*0.4 + sumFGM *0.25 + projL10[0] * 0.15  + projnl *0.2
         elif col == "REB":
-            proj[0] = proj[0]*0.35 + rebs2 * 0.3 + projL10[0] * 0.15 +  + projnl *0.2
+            if last5rebavg == None:
+                last5rebavg = projL10[0]
+            proj[0] = proj[0]*0.15 + rebs2 * 0.1 + projL10[0] * 0.15 +  + projnl *0.2+ last5rebavg *0.4
         elif col == "FTM": 
             proj[0]*0.5 + projL10[0] * 0.3 +  + projnl *0.2
         elif col == "FTA": 
@@ -1043,6 +1066,11 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
     projDict["PTS"] =  projDict["PTS"] *0.7 + (projDict["PTS"] * teamvpts) *0.3
     projDict["AST"] =  projDict["AST"] *0.7 + (projDict["AST"] * teamvast)*0.3
     projDict["REB"] =  projDict["REB"] *0.7 + (projDict["REB"] * teamvreb)*0.3
+
+    if hasattr(projDict['PTS'], "__len__"):
+        projDict['PTS'] = projDict['PTS'][0]
+
+    print( "LAST 5: ", last5ptsavg, " Proj: ",  projDict["PTS"])
     
 
     return projDict
@@ -1387,9 +1415,10 @@ def getJsonLineups():
             matchup = gamesdf2023.iloc[0]['MATCHUP']
 
         #Get player current team
-        teams = matchup.split(" ")
-        player_team = teams[0]
-        playersoutDict[player[0]['id']] = player_team
+
+            teams = matchup.split(" ")
+            player_team = teams[0]
+            playersoutDict[player[0]['id']] = player_team
         #startingLineupsByName[player[0]["full_name"]] = player_team
     with open('playersOutDict.json', 'w', encoding='utf-8') as f:
         json.dump(playersoutDict, f, ensure_ascii=False, indent=4)
@@ -1482,8 +1511,8 @@ def teamdef(teamName, position):
 
 #### MAIN FUNCTION: Model Games ####
 def modelGame():
-   # getLineups()
-    #getJsonLineups()
+ #   getLineups()
+ #   getJsonLineups()
 
     games = getTodaysGames()
     

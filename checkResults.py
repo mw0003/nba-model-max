@@ -358,36 +358,49 @@ print("INCORRECT: " ,incorrectPicks)
 print("ACCURACY: ", correctPicks/(correctPicks+incorrectPicks))
 
 results['overall'] = correctPicks/(correctPicks+incorrectPicks)
+#results['overallCorrect'] = correctPicks
+#results['overallIncorrect'] =incorrectPicks
 
 print("CORRECT PTS: ", correctPts)
 print("INCORRECT: " ,incorrectPts)
 print("ACCURACY: ", correctPts/(correctPts+incorrectPts))
 
 results['pts'] = correctPts/(correctPts+incorrectPts)
+#results['correctPts'] = correctPts
+#results['incorrectPts'] = incorrectPts
 
 print("CORRECT AST: ", correctAst)
 print("INCORRECT: " ,incorrectAst)
 print("ACCURACY: ", correctAst/(correctAst+incorrectAst))
 
 results['ast'] = correctAst/(correctAst+incorrectAst)
+#results['correctAst'] = correctAst
+#results['incorrectAst'] = incorrectAst
 
 print("CORRECT REB: ", correctReb)
 print("INCORRECT: " ,incorrectReb)
 print("ACCURACY: ", correctReb/(correctReb+incorrectReb))
 
 results['reb'] = correctReb/(correctReb+incorrectReb)
+#results['correctReb'] = correctReb
+#results['incorrectReb'] = incorrectReb
 
 print("CORRECT 3: ", correctThree)
 print("INCORRECT: " ,incorrectThree)
 print("ACCURACY: ", correctThree/(correctThree+incorrectThree))
 
 results['threes'] = correctThree/(correctThree+incorrectThree)
+#results['correctThrees'] = correctThree
+#results['incorrectThrees'] = incorrectThree
 
 print("CORRECT Stl: ", correctStl)
 print("INCORRECT: " ,incorrectStl)
 print("ACCURACY: ", correctStl/(correctStl+incorrectStl))
 
 results['stl'] = correctStl/(correctStl+incorrectStl)
+#results['correctStl'] = correctStl
+#results['incorrectStl'] = incorrectStl
+
 
 #print("CORRECT Blk: ", correctBlk)
 #print("INCORRECT: " ,incorrectBlk)

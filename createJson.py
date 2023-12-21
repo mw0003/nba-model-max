@@ -150,7 +150,3 @@ for line in lines:
 print(dic)
 with open('data.json', 'w', encoding='utf-8') as f:
         json.dump(dic, f, ensure_ascii=False, indent=4)
-
-##print(data)
-#print(lines)
-
