@@ -287,6 +287,8 @@ def linearProjectionTrackBox(df1, colname):
 
     y = np.array(df['label'])
 
+    if len(X) <= 0 or len(y) <=0:
+        return None
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
     clf = LinearRegression(n_jobs=-1)
     clf.fit(X_train, y_train)
@@ -655,13 +657,19 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
     print(lastTenAdvBoxScores)
     print(trackBox)
 
+    if len(trackBox.index) < 2:
+        return "N/A"
+
     colsOfinterest = ['reboundChancesTotal', 'touches', 'passes','assists','contestedFieldGoalsMade','contestedFieldGoalsAttempted', 'uncontestedFieldGoalsMade', 'uncontestedFieldGoalsAttempted', 'defendedAtRimFieldGoalsMade', 'defendedAtRimFieldGoalsAttempted']
 
     #Record projections for player track stats
     trackdict = {}
     for col in colsOfinterest:
         val = linearProjectionTrackBox(trackBox, col)
-        trackdict[col] = val[0]
+        if val != None:
+            trackdict[col] = val[0]
+        else: 
+            return "N/A"
 
    # print(trackdict)
     playerPosition = trackBox['position'].to_numpy()[0]
@@ -1511,8 +1519,8 @@ def teamdef(teamName, position):
 
 #### MAIN FUNCTION: Model Games ####
 def modelGame():
- #   getLineups()
- #   getJsonLineups()
+    #getLineups()
+    #getJsonLineups()
 
     games = getTodaysGames()
     

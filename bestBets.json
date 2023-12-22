@@ -1,0 +1,44 @@
+{
+    "maxpts": [
+        "Karl-Anthony Towns",
+        "Isaiah Stewart",
+        "Cade Cunningham",
+        "",
+        ""
+    ],
+    "minpts": [
+        "Collin Sexton",
+        "Bojan Bogdanovic",
+        "",
+        "",
+        ""
+    ],
+    "maxast": [
+        "Mike Conley",
+        "Desmond Bane",
+        "CJ McCollum",
+        "Max Strus",
+        "Cade Cunningham"
+    ],
+    "minast": [
+        "Collin Sexton",
+        "",
+        "",
+        "",
+        ""
+    ],
+    "maxreb": [
+        "Khris Middleton",
+        "Malik Beasley",
+        "Damian Lillard",
+        "Jeremy Sochan",
+        "Max Strus"
+    ],
+    "minreb": [
+        "Deandre Ayton",
+        "Jarrett Allen",
+        "Walker Kessler",
+        "Bojan Bogdanovic",
+        ""
+    ]
+}
