@@ -10,7 +10,7 @@ from nba_api.live.nba.endpoints import scoreboard
 
 #Get yesterdays date
 def yesterday(frmt='%Y-%m-%d', string=True):
-    yesterday = datetime.now() - timedelta(1)
+    yesterday = datetime.now()
     if string:
         return yesterday.strftime(frmt)
     return yesterday
@@ -20,7 +20,14 @@ with open('lines.json') as json_file:
  
 with open('data.json') as json_file:
     proj = json.load(json_file)
+with open('bestBets.json') as json_file:
+    bb = json.load(json_file)
  
+
+
+ 
+print("Collin Sexton" in bb['minpts'])
+
 
 #games = ['0022300295', '0022300294','0022300293','0022300292','0022300297','0022300296','0022300298']
 
@@ -47,6 +54,15 @@ correctThree = 0
 incorrectThree = 0
 
 results ={}
+
+bestBetCrPoints = 0
+bestBetCrAst = 0
+bestBetCrReb = 0
+bestBetIcPts = 0
+bestBetIcAst = 0
+bestBetIcReb = 0
+
+
 
 #UNCOMMENT IF RUNNING BEFORE 10AM NEXT DAY
 board = scoreboard.ScoreBoard()
@@ -91,6 +107,9 @@ for game in games:
                     #handle Points
                     if pl['statistics']['points'] > -1 and 'fanduel_pts' in proj[item]:
                         if pl['statistics']['points'] > proj[item]['fanduel_pts'] and proj[item]['pick_pts'] == "OVER":
+                            if item in bb['maxpts']:
+                                bestBetCrPoints +=1
+                                print(bestBetCrPoints)
                             print("CORRECT")
                             results[item] = proj[item]
                             results[item]['pts_res'] = "W"
@@ -98,6 +117,8 @@ for game in games:
                             correctPts = correctPts +1
                         elif pl['statistics']['points'] < proj[item]['fanduel_pts'] and proj[item]['pick_pts'] == "UNDER":
                             print("CORRECT")
+                            if item in bb['minpts']:
+                                bestBetCrPoints +=1
                             results[item] = proj[item]
                             results[item]['pts_res'] = "W"
                             correctPicks = correctPicks +1
@@ -105,6 +126,8 @@ for game in games:
                         else:
                             print("INCORRECT")
                             results[item] = proj[item]
+                            if item in bb['maxpts'] or item in bb['minpts']:
+                                bestBetIcPts +=1
                             results[item]['pts_res'] = "L"
                             incorrectPicks = incorrectPicks + 1
                             incorrectPts = incorrectPts +1
@@ -113,18 +136,24 @@ for game in games:
 
                         if pl['statistics']['assists'] > proj[item]['fanduel_ast'] and proj[item]['pick_ast'] == "OVER":
                             print("CORRECT")
+                            if item in bb['maxast']:
+                                bestBetCrAst +=1
                             results[item] = proj[item]
                             results[item]['ast_res'] = "W"
                             correctPicks = correctPicks +1
                             correctAst = correctAst +1
                         elif pl['statistics']['assists'] < proj[item]['fanduel_ast'] and proj[item]['pick_ast'] == "UNDER":
                             print("CORRECT")
+                            if item in bb['minast']:
+                                bestBetIcAst +=1
                             results[item] = proj[item]
                             results[item]['ast_res'] = "W"
                             correctPicks = correctPicks +1
                             correctAst = correctAst +1
                         else:
                             print("INCORRECT")
+                            if item in bb['maxast'] or item in bb['minast']:
+                                bestBetIcAst +=1
                             results[item] = proj[item]
                             results[item]['ast_res'] = "L"
                             incorrectPicks = incorrectPicks + 1
@@ -135,17 +164,23 @@ for game in games:
                         if pl['statistics']['reboundsTotal'] > proj[item]['fanduel_reb'] and proj[item]['pick_reb'] == "OVER":
                             print("CORRECT")
                             results[item] = proj[item]
+                            if item in bb['maxreb']:
+                                bestBetCrReb +=1
                             results[item]['reb_res'] = "W"
                             correctPicks = correctPicks +1
                             correctReb = correctReb +1
                         elif pl['statistics']['reboundsTotal'] < proj[item]['fanduel_reb'] and proj[item]['pick_reb'] == "UNDER":
                             print("CORRECT")
+                            if item in bb['minreb']:
+                                bestBetCrReb +=1
                             results[item] = proj[item]
                             results[item]['reb_res'] = "W"
                             correctPicks = correctPicks +1
                             correctReb = correctReb +1
                         else:
                             print("INCORRECT")
+                            if item in bb['maxreb'] or item in bb['minreb']:
+                                bestBetIcReb +=1
                             results[item] = proj[item]
                             results[item]['reb_res'] = "L"
                             incorrectPicks = incorrectPicks + 1
@@ -232,18 +267,24 @@ for pl in awayStats:
                     if pl['statistics']['points'] > -1 and 'fanduel_pts' in proj[item]:
                         if pl['statistics']['points'] > proj[item]['fanduel_pts'] and proj[item]['pick_pts'] == "OVER":
                             print("CORRECT")
+                            if item in bb['maxpts']:
+                                bestBetCrPoints +=1
                             results[item] = proj[item]
                             results[item]['pts_res'] = "W"
                             correctPicks = correctPicks +1
                             correctPts = correctPts +1
                         elif pl['statistics']['points'] < proj[item]['fanduel_pts'] and proj[item]['pick_pts'] == "UNDER":
                             print("CORRECT")
+                            if item in bb['minpts']:
+                                bestBetCrPoints +=1
                             results[item] = proj[item]
                             results[item]['pts_res'] = "W"
                             correctPicks = correctPicks +1
                             correctPts = correctPts +1
                         else:
                             print("INCORRECT")
+                            if item in bb['maxpts'] or item in bb['minpts']:
+                                bestBetIcPts +=1
                             results[item] = proj[item]
                             results[item]['pts_res'] = "L"
                             incorrectPicks = incorrectPicks + 1
@@ -253,18 +294,24 @@ for pl in awayStats:
 
                         if pl['statistics']['assists'] > proj[item]['fanduel_ast'] and proj[item]['pick_ast'] == "OVER":
                             print("CORRECT")
+                            if item in bb['maxast']:
+                                bestBetCrAst +=1
                             results[item] = proj[item]
                             results[item]['ast_res'] = "W"
                             correctPicks = correctPicks +1
                             correctAst = correctAst +1
                         elif pl['statistics']['assists'] < proj[item]['fanduel_ast'] and proj[item]['pick_ast'] == "UNDER":
                             print("CORRECT")
+                            if item in bb['minast']:
+                                bestBetCrAst +=1
                             results[item] = proj[item]
                             results[item]['ast_res'] = "W"
                             correctPicks = correctPicks +1
                             correctAst = correctAst +1
                         else:
                             print("INCORRECT")
+                            if item in bb['maxast'] or item in bb['minast']:
+                                bestBetIcAst +=1
                             results[item] = proj[item]
                             results[item]['ast_res'] = "L"
                             incorrectPicks = incorrectPicks + 1
@@ -274,18 +321,24 @@ for pl in awayStats:
 
                         if pl['statistics']['reboundsTotal'] > proj[item]['fanduel_reb'] and proj[item]['pick_reb'] == "OVER":
                             print("CORRECT")
+                            if item in bb['maxreb']:
+                                bestBetCrReb+=1
                             results[item] = proj[item]
                             results[item]['ast_res'] = "W"
                             correctPicks = correctPicks +1
                             correctReb = correctReb + 1
                         elif pl['statistics']['reboundsTotal'] < proj[item]['fanduel_reb'] and proj[item]['pick_reb'] == "UNDER":
                             print("CORRECT")
+                            if item in bb['minreb']:
+                                bestBetCrReb+=1
                             results[item] = proj[item]
                             results[item]['reb_res'] = "W"
                             correctPicks = correctPicks +1
                             correctReb = correctReb + 1
                         else:
                             print("INCORRECT")
+                            if item in bb['maxreb'] or item in bb['minreb']:
+                                bestBetIcReb+=1
                             results[item] = proj[item]
                             results[item]['reb_res'] = "L"
                             incorrectPicks = incorrectPicks + 1
@@ -407,7 +460,13 @@ results['stl'] = correctStl/(correctStl+incorrectStl)
 #print("ACCURACY: ", correctBlk/(correctBlk+incorrectBlk))
 
 #results['blk'] = correctBlk/(correctBlk+incorrectBlk)
+print (bestBetCrPoints, bestBetIcPts)
+print (bestBetCrAst, bestBetIcAst)
+print (bestBetCrReb, bestBetIcReb)
 
+results['bestBetsPts'] = bestBetCrPoints / (bestBetCrPoints + bestBetIcPts)
+results['bestBetsAst'] = bestBetCrAst / (bestBetCrAst + bestBetIcAst)
+results['bestBetsReb'] = bestBetCrReb / (bestBetCrReb + bestBetIcReb)
 
 dt = yesterday()
 

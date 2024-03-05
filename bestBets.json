@@ -1,44 +1,44 @@
 {
     "maxpts": [
-        "Karl-Anthony Towns",
-        "Isaiah Stewart",
-        "Cade Cunningham",
+        "Paolo Banchero",
+        "Jalen Suggs",
+        "Tre Mann",
         "",
         ""
     ],
     "minpts": [
-        "Collin Sexton",
-        "Bojan Bogdanovic",
-        "",
-        "",
-        ""
+        "Andrew Nembhard",
+        "Donte DiVincenzo",
+        "Nikola Jovic",
+        "Darius Garland",
+        "Gary Harris"
     ],
     "maxast": [
-        "Mike Conley",
-        "Desmond Bane",
-        "CJ McCollum",
-        "Max Strus",
-        "Cade Cunningham"
+        "Derrick White",
+        "Jrue Holiday",
+        "Jalen Suggs",
+        "Tre Mann",
+        ""
     ],
     "minast": [
-        "Collin Sexton",
-        "",
-        "",
-        "",
-        ""
+        "Immanuel Quickley",
+        "Kyle Lowry",
+        "Dennis Schroder",
+        "Paolo Banchero",
+        "Franz Wagner"
     ],
     "maxreb": [
-        "Khris Middleton",
-        "Malik Beasley",
-        "Damian Lillard",
-        "Jeremy Sochan",
-        "Max Strus"
+        "Jalen Duren",
+        "Isaiah Stewart",
+        "Terry Rozier",
+        "Jarrett Allen",
+        "Evan Mobley"
     ],
     "minreb": [
-        "Deandre Ayton",
-        "Jarrett Allen",
-        "Walker Kessler",
-        "Bojan Bogdanovic",
-        ""
+        "Kelly Olynyk",
+        "Ochai Agbaji",
+        "Josh Hart",
+        "Nic Claxton",
+        "Dorian Finney-Smith"
     ]
 }

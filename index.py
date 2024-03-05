@@ -622,6 +622,65 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
     last5pts = last5['PTS'].to_numpy()
     last5ast = last5['AST'].to_numpy()
     last5reb = last5['REB'].to_numpy()
+    last5min = last5['MIN'].to_numpy()
+
+    #PLAYER HOT/COLD STREAK FINDER
+    minGameLog = gamesdf2023['MIN'].to_numpy()
+    ptsGameLog = gamesdf2023['PTS'].to_numpy()
+    astGameLog = gamesdf2023['AST'].to_numpy()
+    rebGameLog = gamesdf2023['REB'].to_numpy()
+
+    if len(minGameLog) <1:
+        return "N/A"
+
+    minPerGameAvg = sum(minGameLog)/len(minGameLog)
+    ptsPerGameAvg = sum(ptsGameLog)/len(ptsGameLog)
+    astPerGameAvg = sum(astGameLog)/len(astGameLog)
+    rebPerGameAvg = sum(rebGameLog)/len(rebGameLog)
+
+    last5minPerGameAvg = sum(last5min)/len(last5min)
+    last5ptsPerGameAvg = sum(last5pts)/len(last5pts)
+    last5astPerGameAvg = sum(last5ast)/len(last5ast)
+    last5rebPerGameAvg = sum(last5reb)/len(last5reb)
+
+    print(last5minPerGameAvg, last5ptsPerGameAvg, last5astPerGameAvg, last5rebPerGameAvg)
+
+    diffmin = last5minPerGameAvg - minPerGameAvg
+    last5ptspermin = last5ptsPerGameAvg/last5minPerGameAvg
+    ptspermin = ptsPerGameAvg/minPerGameAvg
+    last5astpermin = last5astPerGameAvg/last5minPerGameAvg
+    astpermin = astPerGameAvg/minPerGameAvg
+    last5rebpermin = last5rebPerGameAvg/last5minPerGameAvg
+    rebpermin = rebPerGameAvg/minPerGameAvg
+
+    print(minPerGameAvg, last5minPerGameAvg)
+
+    print(ptspermin, last5ptspermin)
+
+    ptsperminDiff = last5ptspermin - ptspermin
+    astperminDiff = last5astpermin - astpermin
+    rebperminDiff = last5rebpermin - rebpermin
+
+    minHeatIndex = 0
+    ptsHeatIndex = 0
+    astHeatIndex = 0
+    rebHeatIndex = 0
+
+    if ptsperminDiff > 0:
+        ptsHeatIndex = ptspermin + ptsperminDiff/2
+    elif ptsperminDiff < 0:
+        ptsHeatIndex = ptspermin + ptsperminDiff/2
+    
+    astHeatIndex = astpermin + astperminDiff/2
+    rebHeatIndex = rebpermin + rebperminDiff/2
+    
+    minHeatIndex = minPerGameAvg + diffmin*0.75
+
+    #projections on current heat Indexes
+    ptsperminProj = ptsHeatIndex * minHeatIndex
+    astperminProj = astHeatIndex * minHeatIndex
+    rebperminProj = rebHeatIndex * minHeatIndex
+    print(ptsperminProj, astperminProj, rebperminProj)
 
     if len(last5pts) > 0:
 
@@ -971,7 +1030,7 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
             if type(usgToPoints) ==list:
                 usgToPoints = usgToPoints[0]
             if ptsvteam != None:
-                proj[0] = proj[0]*0.15 +usgToPoints*0.1+  projL10[0]*0.1 + projnl *0.1 + ptsvteam *0.15+ last5ptsavg *0.4
+                proj[0] = proj[0]*0.15 +usgToPoints*0.1+  projL10[0]*0.1 + projnl *0.1 + ptsvteam *0.15+ last5ptsavg *0.2 + ptsperminProj *0.2
             else:
                 proj[0] = proj[0]*0.15 +usgToPoints*0.3 + projL10[0]*0.1 + projnl *0.3 + last5ptsavg *0.15
 
@@ -983,7 +1042,7 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
             if last5astavg == None:
                 last5astavg = projL10[0]
             if astvteam != None:
-                proj[0] = proj[0]*0.1+ astByPass*0.2 + projL10[0]*0.1 + projnl *0.15 + astvteam*0.15 + last5astavg *0.3
+                proj[0] = proj[0]*0.1+ astByPass*0.15 + projL10[0]*0.1 + projnl *0.10 + astvteam*0.15 + last5astavg *0.2 + astperminProj *0.2
             else:
                 proj[0] = proj[0]*0.1 + astByPass*0.2 + projL10[0]*0.1 + projnl *0.2+ last5astavg *0.4
         elif col == "FGM":
@@ -991,7 +1050,7 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
         elif col == "REB":
             if last5rebavg == None:
                 last5rebavg = projL10[0]
-            proj[0] = proj[0]*0.15 + rebs2 * 0.1 + projL10[0] * 0.15 +  + projnl *0.2+ last5rebavg *0.4
+            proj[0] = proj[0]*0.15 + rebs2 * 0.1 + projL10[0] * 0.15 +  + projnl *0.2+ last5rebavg *0.2 + rebperminProj *0.2
         elif col == "FTM": 
             proj[0]*0.5 + projL10[0] * 0.3 +  + projnl *0.2
         elif col == "FTA": 
@@ -1042,6 +1101,7 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
     elif fg3_pct - d_3s < 0:
         pct3offset = fg3_pct + ((fg3_pct + d_3s)*0.1)
     
+    print(fg2_pct, d_2s)
     if fg2_pct - d_2s > 0:
         pct2offset = fg2_pct - (fg2_pct - d_2s)
     elif fg2_pct - d_2s < 0:
@@ -1414,22 +1474,25 @@ def getJsonLineups():
         time.sleep(.600)
         player = findplayer(p[0])
         print(player)
-        gameLog2023 = playergamelog.PlayerGameLog(player[0]['id'],2023,'Regular Season')
-        gamesdf2023 = gameLog2023.get_data_frames()[0]
-        #print(gamesdf2023)
-        if gamesdf2023.empty:
-            print(p)
-        else:
-            matchup = gamesdf2023.iloc[0]['MATCHUP']
+        if player:
+            gameLog2023 = playergamelog.PlayerGameLog(player[0]['id'],2023,'Regular Season')
+            gamesdf2023 = gameLog2023.get_data_frames()[0]
+            #print(gamesdf2023)
+            if gamesdf2023.empty:
+                print(p)
+            else:
+                matchup = gamesdf2023.iloc[0]['MATCHUP']
 
         #Get player current team
 
             teams = matchup.split(" ")
             player_team = teams[0]
             playersoutDict[player[0]['id']] = player_team
+
         #startingLineupsByName[player[0]["full_name"]] = player_team
-    with open('playersOutDict.json', 'w', encoding='utf-8') as f:
-        json.dump(playersoutDict, f, ensure_ascii=False, indent=4)
+            with open('playersOutDict.json', 'w', encoding='utf-8') as f:
+                json.dump(playersoutDict, f, ensure_ascii=False, indent=4)
+
    # print(playersoutDict)
     for p in allplayers:
         

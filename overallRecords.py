@@ -21,6 +21,12 @@ rebOverTime = {}
 astOverTime = {}
 threeOverTime = {}
 stlOverTime = {}
+bbPts = 0
+bbIPts = 0
+bbReb = 0
+bbIReb = 0
+bbAst = 0
+bbIAst = 0
 for filename in glob.glob(os.path.join(path, '*.json')):
     with open(filename) as json_file:
         data = json.load(json_file)
@@ -31,9 +37,17 @@ for filename in glob.glob(os.path.join(path, '*.json')):
         astOverTime[date] = data["ast"]
         threeOverTime[date] = data["threes"]
         stlOverTime[date] = data['stl']
+        if "bestBetsPtsCorrect" in data:
+            bbPts += data['bestBetsPtsCorrect']
+            bbIPts += data['bestBetsPtsInCorrect']
+            bbIAst += data['bestBetsAstIncorrect']
+            bbAst += data['bestBetsAst']
+            bbReb += data['bestBetsReb']
+            bbIReb += data['bestBetsRebIncorrect']
+
         if "overallCorrect" not in data:
             for r in data:
-                if type(data[r]) != float:
+                if type(data[r]) != float or type(data[r]) != int:
                     if "pts_res" in data[r]:
                         if data[r]["pts_res"] == "W":
                             correctPts +=1 
@@ -88,6 +102,12 @@ overall['rebOverTime'] = rebOverTime
 overall['astOverTime'] = astOverTime
 overall['threeOverTime'] =threeOverTime
 overall['stlOverTime'] =stlOverTime
+overall['bbPtsCorrect'] =bbPts
+overall['bbPtsInCorrect'] =bbIPts
+overall['bbAstCorrect'] =bbAst
+overall['bbAstInCorrect'] =bbIAst
+overall['bbRebCorrect'] =bbReb
+overall['bbRebInCorrect'] =bbIReb
 
 with open('overall.json', 'w', encoding='utf-8') as f:
         json.dump(overall, f, ensure_ascii=False, indent=4)
