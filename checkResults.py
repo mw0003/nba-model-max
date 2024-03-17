@@ -68,6 +68,12 @@ bestBetIcReb = 0
 board = scoreboard.ScoreBoard()
 games = board.games.get_dict()
 
+confIntPtsW = 0
+confIntPtsL = 0
+confIntAstW = 0
+confIntAstL = 0
+confIntRebW = 0
+confIntRebL = 0
 #print(games)
 
 for game in games:
@@ -105,6 +111,23 @@ for game in games:
                 #check for NA projections
                 if proj[item] != "N/A":
                     #handle Points
+                    if "ptsConfFloor" in proj[item] and 'ptsConfTop' in proj[item]:
+                        if pl['statistics']['points'] >= proj[item]['ptsConfFloor'] or pl['statistics']['points'] >= proj[item]['ptsConfTop']:
+                            confIntPtsW = confIntPtsW +1
+                        else:
+                            confIntPtsL = confIntPtsL +1
+
+                    if "astConfFloor" in proj[item] and 'astConfTop' in proj[item]:
+                        if pl['statistics']['assists'] >= proj[item]['astConfFloor'] or pl['statistics']['assists'] >= proj[item]['astConfTop']:
+                            confIntAstW = confIntAstW +1
+                        else:
+                            confIntAstL = confIntAstL +1
+                    if "rebConfFloor" in proj[item] and 'rebConfTop' in proj[item]:
+                        if pl['statistics']['reboundsTotal'] >= proj[item]['rebConfFloor'] or pl['statistics']['reboundsTotal'] >= proj[item]['rebConfTop']:
+                            confIntRebW = confIntRebW +1
+                        else:
+                            confIntRebL = confIntRebL +1
+
                     if pl['statistics']['points'] > -1 and 'fanduel_pts' in proj[item]:
                         if pl['statistics']['points'] > proj[item]['fanduel_pts'] and proj[item]['pick_pts'] == "OVER":
                             if item in bb['maxpts']:
@@ -467,6 +490,13 @@ print (bestBetCrReb, bestBetIcReb)
 results['bestBetsPts'] = bestBetCrPoints / (bestBetCrPoints + bestBetIcPts)
 results['bestBetsAst'] = bestBetCrAst / (bestBetCrAst + bestBetIcAst)
 results['bestBetsReb'] = bestBetCrReb / (bestBetCrReb + bestBetIcReb)
+
+print(confIntPtsW/(confIntPtsL+confIntPtsW), " Conf Pts W")
+#print(confIntPtsL , " conf pts L")
+print(confIntAstW/(confIntAstL+ confIntAstW), ' conf ast W')
+#print(confIntAstL , " conf ast L")
+print(confIntRebW/ (confIntRebL+confIntRebW), " conf reb w")
+#print(confIntRebL , " conf reb L")
 
 dt = yesterday()
 

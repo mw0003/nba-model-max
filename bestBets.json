@@ -1,44 +1,44 @@
 {
     "maxpts": [
-        "Paolo Banchero",
-        "Jalen Suggs",
-        "Tre Mann",
-        "",
+        "Tyrese Maxey",
+        "Donovan Mitchell",
+        "Dillon Brooks",
+        "Jalen Green",
         ""
     ],
     "minpts": [
-        "Andrew Nembhard",
-        "Donte DiVincenzo",
-        "Nikola Jovic",
-        "Darius Garland",
-        "Gary Harris"
+        "Dalano Banton",
+        "",
+        "",
+        "",
+        ""
     ],
     "maxast": [
-        "Derrick White",
-        "Jrue Holiday",
-        "Jalen Suggs",
-        "Tre Mann",
+        "Darius Garland",
+        "Donovan Mitchell",
+        "Jalen Green",
+        "",
         ""
     ],
     "minast": [
-        "Immanuel Quickley",
-        "Kyle Lowry",
-        "Dennis Schroder",
-        "Paolo Banchero",
-        "Franz Wagner"
+        "Jalen Brunson",
+        "Deni Avdija",
+        "Dalano Banton",
+        "",
+        ""
     ],
     "maxreb": [
-        "Jalen Duren",
-        "Isaiah Stewart",
-        "Terry Rozier",
-        "Jarrett Allen",
-        "Evan Mobley"
+        "Domantas Sabonis",
+        "Donovan Mitchell",
+        "Dillon Brooks",
+        "Jalen Green",
+        ""
     ],
     "minreb": [
-        "Kelly Olynyk",
-        "Ochai Agbaji",
-        "Josh Hart",
-        "Nic Claxton",
-        "Dorian Finney-Smith"
+        "Torrey Craig",
+        "Dalano Banton",
+        "",
+        "",
+        ""
     ]
 }

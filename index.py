@@ -49,6 +49,7 @@ import numpy as np
 from numpy.polynomial.polynomial import polyfit
 import matplotlib.pyplot as plt
 import math
+import scipy
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split, cross_val_score
@@ -491,8 +492,16 @@ def linearOneProjection(player_game_log, colname):
         next_date += 1
         print(next_date)
     return forecast_set
-#adv Usg box score
 
+#conf interval function
+def mean_confidence_interval(data, confidence=0.85):
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * scipy.stats.t.ppf((1 + confidence) / 2., n-1)
+    return [m, m-h, m+h]
+    
+#adv Usg box score
 def getUsageBox(Game_id, playerID):
    dfs = boxscoreplayertrackv3.BoxScorePlayerTrackV3(game_id = Game_id)
    df = dfs.get_data_frames()
@@ -615,6 +624,13 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
     gamesdf2023 = gameLog2023.get_data_frames()[0]
     gamesdf2022 = gameLog2022.get_data_frames()[0]
 
+    if gamesdf2023.empty:
+        return "N/A"
+
+    confIntOverall = mean_confidence_interval(gamesdf2023['PTS'])
+    confIntOverallAst = mean_confidence_interval(gamesdf2023['AST'])
+    confIntOverallReb = mean_confidence_interval(gamesdf2023['REB'])
+   
     #Get last 10 games
     lastTen = gamesdf2023.head(15)
     last5  = gamesdf2023.head(5)
@@ -624,11 +640,17 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
     last5reb = last5['REB'].to_numpy()
     last5min = last5['MIN'].to_numpy()
 
+    last15pts = lastTen['PTS'].to_numpy()
+    last15ast = lastTen['AST'].to_numpy()
+    last15reb = lastTen['REB'].to_numpy()
+    last15min = lastTen['MIN'].to_numpy()
+
     #PLAYER HOT/COLD STREAK FINDER
     minGameLog = gamesdf2023['MIN'].to_numpy()
     ptsGameLog = gamesdf2023['PTS'].to_numpy()
     astGameLog = gamesdf2023['AST'].to_numpy()
     rebGameLog = gamesdf2023['REB'].to_numpy()
+    
 
     if len(minGameLog) <1:
         return "N/A"
@@ -638,6 +660,55 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
     astPerGameAvg = sum(astGameLog)/len(astGameLog)
     rebPerGameAvg = sum(rebGameLog)/len(rebGameLog)
 
+    confIntLast5 = mean_confidence_interval(last5pts)
+    confIntLast15 = mean_confidence_interval(last15pts)
+
+    confIntLast5Ast =  mean_confidence_interval(last5ast)
+    confIntLast15Ast =  mean_confidence_interval(last15ast)
+
+
+    confIntLast5Reb =  mean_confidence_interval(last5reb)
+    confIntLast15Reb =  mean_confidence_interval(last15reb)
+
+
+    print(confIntLast5)
+    print(confIntLast15)
+    print(confIntOverall)
+
+    calcConf = []
+    calcConfAst = []
+    calcConfReb = []
+
+    #pts 
+
+    floor = (confIntLast15[1] + confIntOverall[1] + confIntLast5[1])/3
+    mid = (confIntLast5[0] + confIntLast15[0]+ confIntOverall[0])/3
+    top = (confIntLast5[2] + confIntLast15[2]+ confIntOverall[2])/3
+    calcConf.append(floor)
+    calcConf.append(mid)
+    calcConf.append(top)
+
+    #ast
+
+    floor = (confIntLast15Ast[1] + confIntOverallAst[1] + confIntLast5Ast[1])/3
+    mid = (confIntLast5Ast[0] + confIntLast15Ast[0]+ confIntOverallAst[0])/3
+    top = (confIntLast5Ast[2] + confIntLast15Ast[2]+ confIntOverallAst[2])/3
+    calcConfAst.append(floor)
+    calcConfAst.append(mid)
+    calcConfAst.append(top)
+
+    #reb
+
+    floor = (confIntLast15Reb[1] + confIntOverallReb[1] + confIntLast5Reb[1])/3
+    mid = (confIntLast5Reb[0] + confIntLast15Reb[0]+ confIntOverallReb[0])/3
+    top = (confIntLast5Reb[2] + confIntLast15Reb[2]+ confIntOverallReb[2])/3
+    calcConfReb.append(floor)
+    calcConfReb.append(mid)
+    calcConfReb.append(top)
+
+
+
+    print(calcConf)
     last5minPerGameAvg = sum(last5min)/len(last5min)
     last5ptsPerGameAvg = sum(last5pts)/len(last5pts)
     last5astPerGameAvg = sum(last5ast)/len(last5ast)
@@ -796,6 +867,11 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
     pctAtRim =[]
     pctUnContest = []
     pctContest = []
+
+    contestedConf = mean_confidence_interval(contestedatt)
+    uncontestedConf = mean_confidence_interval(uncontestedatt)
+
+    
     count = 0
   
     #TODO: Add trend on track details
@@ -811,10 +887,35 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
     contestedpct = trackBox['contestedFieldGoalPercentage'].to_numpy()
     openpct = trackBox['uncontestedFieldGoalsPercentage'].to_numpy()
     rimpct = trackBox['defendedAtRimFieldGoalPercentage'].to_numpy()
+    contpctConf = mean_confidence_interval(contestedpct)
+    openpctConf = mean_confidence_interval(openpct)
     contestedpct = np.sum(contestedpct)/len(contestedpct)
     rimpct = np.sum(rimpct)/len(rimpct)
     openpct = np.sum(openpct)/len(openpct)
 
+    min = contpctConf[1]* contestedConf[1]
+    mid = contpctConf[0]* contestedConf[0]
+    top = contpctConf[2]* contestedConf[2]
+    contfgConf = []
+    contfgConf.append(min)
+    contfgConf.append(mid)
+    contfgConf.append(top)
+    uncontFgConf = []
+
+    min = openpctConf[1] * uncontestedConf[1]
+    mid = openpctConf[0] * uncontestedConf[0]
+    top = openpctConf[2] * uncontestedConf[2]
+    uncontFgConf.append(min)
+    uncontFgConf.append(mid)
+    uncontFgConf.append(top)
+
+    min = uncontFgConf[0] + contfgConf[0]
+    mid = uncontFgConf[1] + contfgConf[1]
+    top = uncontFgConf[2] + contfgConf[2]
+    fgConf = []
+    fgConf.append(min)
+    fgConf.append(mid)
+    fgConf.append(top)
 
     contestedJumpers = trackdict["contestedFieldGoalsAttempted"] - trackdict['defendedAtRimFieldGoalsAttempted']
 
@@ -920,7 +1021,7 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
         teamPace = teamPace.values[0]
 
     dic = matchupsrollup.MatchupsRollup(def_team_id_nullable=opposingTeam, off_player_id_nullable=player[0]['id']).get_data_frames()[0]
-
+    
     if dic.empty:
         print("empty matchup")
         ptsvteam = None
@@ -1008,8 +1109,10 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
     #print(gamesdf2022)
 
     matchup = gamesdf2023.iloc[0]['MATCHUP']
-
-    teams = matchup.split(" ")
+    if matchup:
+        teams = matchup.split(" ")
+    else:
+        return "N/A"
 
     if team != teams[0]:
         team = teams[0]
@@ -1086,6 +1189,8 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
     pts_proj = projDict['PTS']
     ftm_proj = projDict['FTM']
     fg2_att = fg_attempted - fg3_attempted
+    pct3offset = 0
+    pct2offset = 0
 
     ptsMinusFt = pts_proj - ftm_proj
     fg2_pct = (fg_made - fg3_made)/fg2_att
@@ -1096,19 +1201,23 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
         d_2s = np.sum(d_2s)/ len(d_2s)
     #d_3s, d_2s
 
-    if fg3_pct - d_3s > 0:
+    if fg3_pct - d_3s >= 0:
         pct3offset = fg3_pct - (fg3_pct - d_3s)
     elif fg3_pct - d_3s < 0:
         pct3offset = fg3_pct + ((fg3_pct + d_3s)*0.1)
     
+
     print(fg2_pct, d_2s)
-    if fg2_pct - d_2s > 0:
+    if fg2_pct - d_2s >= 0:
         pct2offset = fg2_pct - (fg2_pct - d_2s)
     elif fg2_pct - d_2s < 0:
         pct2offset = fg2_pct + ((fg2_pct + d_2s)*0.1)
 
     print("%3 OFFSET: ", pct3offset, " PROJ %3: ", fg3_pct)
     print("%2 OFFSET: ", pct2offset, " PROJ %2: ", fg2_pct)
+
+    if pct3offset == 0 or pct2offset == 0:
+        return "N/A"
 
     fg3m = fg3_attempted * pct3offset
     fg2m = fg2_att * pct2offset
@@ -1122,12 +1231,12 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
     if not offDic:
         print("NO PLAYERS OUT")
     else:
-        projDict["PTS"] =  projDict["PTS"] *0.7 + offDic["PTSOFF"]*0.3
-        projDict["AST"] =  projDict["AST"] *0.7 + offDic["ASTOFF"]*0.3
-        projDict["FG3M"] =  projDict["FG3M"] *0.7 + offDic["3sOFF"]*0.3
-        projDict["REB"] =  projDict["REB"] *0.7 + offDic["REBOFF"]*0.3
-        projDict["BLK"] =  projDict["BLK"] *0.7 + offDic["BLKOFF"]*0.3
-        projDict["STL"] =  projDict["STL"] *0.7 + offDic["STLOFF"]*0.3
+        projDict["PTS"] =  projDict["PTS"] *0.6 + offDic["PTSOFF"]*0.4
+        projDict["AST"] =  projDict["AST"] *0.6 + offDic["ASTOFF"]*0.4
+        projDict["FG3M"] =  projDict["FG3M"] *0.6 + offDic["3sOFF"]*0.4
+        projDict["REB"] =  projDict["REB"] *0.6 + offDic["REBOFF"]*0.4
+        projDict["BLK"] =  projDict["BLK"] *0.6 + offDic["BLKOFF"]*0.4
+        projDict["STL"] =  projDict["STL"] *0.6 + offDic["STLOFF"]*0.4
 
     # projDict["Team"] = team
 
@@ -1140,7 +1249,18 @@ def getPlayerProjection(playerName, team, opposingTeam, opposingTeamLineup, play
 
     print( "LAST 5: ", last5ptsavg, " Proj: ",  projDict["PTS"])
     
+    projDict['ptsConfFloor'] = calcConf[0]
+    projDict['ptsConfMid'] = calcConf[1]
+    projDict['ptsConfTop'] = calcConf[2]
 
+    projDict['astConfFloor'] = calcConfAst[0]
+    projDict['astConfMid'] = calcConfAst[1]
+    projDict['astConfTop'] = calcConfAst[2]
+
+    projDict['rebConfFloor'] = calcConfReb[0]
+    projDict['rebConfMid'] = calcConfReb[1]
+    projDict['rebConfTop'] = calcConfReb[2]
+    
     return projDict
     
 
@@ -1482,12 +1602,11 @@ def getJsonLineups():
                 print(p)
             else:
                 matchup = gamesdf2023.iloc[0]['MATCHUP']
+                teams = matchup.split(" ")
+                player_team = teams[0]
+                playersoutDict[player[0]['id']] = player_team
 
         #Get player current team
-
-            teams = matchup.split(" ")
-            player_team = teams[0]
-            playersoutDict[player[0]['id']] = player_team
 
         #startingLineupsByName[player[0]["full_name"]] = player_team
             with open('playersOutDict.json', 'w', encoding='utf-8') as f:
@@ -1499,8 +1618,15 @@ def getJsonLineups():
         time.sleep(.600)
         player = findplayer(p[0])
         print(player)
-        gameLog2023 = playergamelog.PlayerGameLog(player[0]['id'],2023,'Regular Season')
-        gamesdf2023 = gameLog2023.get_data_frames()[0]
+        if player:
+            gameLog2023 = playergamelog.PlayerGameLog(player[0]['id'],2023,'Regular Season')
+            gamesdf2023 = gameLog2023.get_data_frames()[0]
+            teams = matchup.split(" ")
+            player_team = teams[0]
+            startingLineupsDict[player[0]['id']] = player_team
+            startingLineupsByName[player[0]["full_name"]] = player_team
+        else:
+            print("none")
         #print(gamesdf2023)
         if gamesdf2023.empty:
             print(p)
@@ -1508,10 +1634,7 @@ def getJsonLineups():
             matchup = gamesdf2023.iloc[0]['MATCHUP']
 
         #Get player current team
-        teams = matchup.split(" ")
-        player_team = teams[0]
-        startingLineupsDict[player[0]['id']] = player_team
-        startingLineupsByName[player[0]["full_name"]] = player_team
+        
     
     with open('startingLineupsDict.json', 'w', encoding='utf-8') as f:
         json.dump(startingLineupsDict, f, ensure_ascii=False, indent=4)
@@ -1580,10 +1703,12 @@ def teamdef(teamName, position):
     
     return ptsRatio, astRatio, rebRatio
 
+
+
 #### MAIN FUNCTION: Model Games ####
 def modelGame():
-    #getLineups()
-    #getJsonLineups()
+    getLineups()
+    getJsonLineups()
 
     games = getTodaysGames()
     
@@ -1748,6 +1873,16 @@ def modelGame():
 #print(sum(nl)/len(nl))
 
 modelGame()
+
+#matchupVal = matchupsrollup.MatchupsRollup(off_player_id_nullable=1628368, def_player_id_nullable=1626156)
+#matchupDf = matchupVal.get_data_frames()[0]
+
+#print(matchupDf['MATCHUP_MIN'])
+#print(matchupDf['MATCHUP_FG_PCT'])
+
+#dic = playervsplayer.PlayerVsPlayer(vs_player_id=1626156, player_id=1628368).get_data_frames()
+#print(dic)
+
 
 #tests = playerdashptshotdefend.PlayerDashPtShotDefend(player_id='2544', team_id='0').get_data_frames()[0]
 #test = playerdashptshotdefend.PlayerDashPtShotDefend(player_id='203552',team_id='0').get_data_frames()[0]
