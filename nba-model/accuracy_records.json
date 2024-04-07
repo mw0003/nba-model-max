@@ -1,0 +1,49 @@
+{
+    "all_time":{
+        "count": 10,
+        "delta_pts":{
+            "accuracy": 0.6,
+            "picks": 75
+        },
+        "delta_ast":{
+            "accuracy": 0.7083333333333334,
+            "picks": 72
+        },
+        "delta_reb":{
+            "accuracy": 0.589041095890411,
+            "picks": 73
+        }
+    },
+    "six_picks":{
+        "count": 6,
+        "delta_pts":{
+            "accuracy": 0.5892857142857143,
+            "picks": 56
+        },
+        "delta_ast":{
+            "accuracy": 0.7413793103448276,
+            "picks": 58
+        },
+        "delta_reb":{
+            "accuracy": 0.6349206349206349,
+            "picks": 63
+        }
+        
+    },
+    "top_four":{
+        "count": 2,
+        "delta_pts":{
+            "accuracy": 0.7727272727272727,
+            "picks": 22
+        },
+        "delta_ast":{
+            "accuracy": 0.7619047619047619,
+            "picks": 23
+        },
+        "delta_reb":{
+            "accuracy": 0.8181818181818182,
+            "picks": 22
+        }
+        
+    }
+}

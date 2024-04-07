@@ -1,0 +1,38 @@
+{
+    "maxpts": [
+        "Duncan Robinson",
+        "Terry Rozier",
+        "Max Strus"
+    ],
+    "minpts": [
+        "Ochai Agbaji",
+        "Kelly Olynyk",
+        "Deandre Ayton",
+        "Chris Paul",
+        "Jabari Walker"
+    ],
+    "maxast": [
+        "Nikola Vucevic",
+        "Anthony Davis",
+        "Jalen Suggs"
+    ],
+    "minast": [
+        "Chris Paul",
+        "Paul George",
+        "Josh Hart",
+        "Franz Wagner",
+        "Kevin Durant"
+    ],
+    "maxreb": [
+        "Ayo Dosunmu",
+        "Terry Rozier",
+        "OG Anunoby",
+        "Jalen Suggs",
+        "Bradley Beal",
+        "Darius Garland",
+        "DeMar DeRozan"
+    ],
+    "minreb": [
+        "Klay Thompson"
+    ]
+}
